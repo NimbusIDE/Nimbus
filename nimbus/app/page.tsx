@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { FileTree, type TreeNode } from "@/components/FileTree";
 import { TabBar } from "@/components/TabBar";
@@ -17,6 +17,18 @@ type FileMap = Record<
     isDirty: boolean;
   }
 >;
+
+// Response from the backend when fetching the workspace tree. Contains an array of TreeNode objects.
+type FileTreeResponse = {
+  nodes: TreeNode[];
+};
+
+// Response from the backend when reading a file. Includes the file's path,
+type WorkspaceFileResponse = {
+  path: string;
+  name: string;
+  content: string;
+};
 
 // Lightweight tab metadata. Tabs do not store file contents or dirty state;
 // those live in FileMap. The dirty dot is derived from FileMap at render time.
@@ -49,105 +61,6 @@ function treeToMap(
   return map;
 }
 
-// File structure for the file explorer. In a real app, this would come from the backend or filesystem.
-const sampleFileTree: TreeNode[] = [
-  {
-    name: "app",
-    type: "folder",
-    children: [
-      {
-        name: "page.tsx",
-        type: "file",
-        content: `export default function HomePage() {
-  return <main>Welcome to Nimbus.</main>;
-}
-`,
-      },
-      {
-        name: "layout.tsx",
-        type: "file",
-        content: `export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return <html lang="en"><body>{children}</body></html>;
-}
-`,
-      },
-      {
-        name: "login",
-        type: "folder",
-        children: [
-          {
-            name: "page.tsx",
-            type: "file",
-            content: `export default function LoginPage() {
-  return <form>Log in to Nimbus</form>;
-}
-`,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    name: "components",
-    type: "folder",
-    children: [
-      {
-        name: "FileTree.tsx",
-        type: "file",
-        content: `export function FileTree() {
-  return <nav aria-label="Project files" />;
-}
-`,
-      },
-      {
-        name: "FileToolbar.tsx",
-        type: "file",
-        content: `export function FileToolbar() {
-  return <div>File actions</div>;
-}
-`,
-      },
-      {
-        name: "hooks",
-        type: "folder",
-        children: [
-          {
-            name: "useFileManager.ts",
-            type: "file",
-            content: `export function useFileManager() {
-  return { fileName: "temp.py" };
-}
-`,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    name: "package.json",
-    type: "file",
-    content: `{
-  "name": "nimbus",
-  "private": true
-}
-`,
-  },
-  {
-    name: "tailwind.config.ts",
-    type: "file",
-    content: `import type { Config } from "tailwindcss";
-
-export default {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
-} satisfies Config;
-`,
-  },
-];
-
 export default function App() {
   const {
     code,
@@ -161,23 +74,56 @@ export default function App() {
     saveFile,
     saveFileAs,
     fileInputProps,   // spread onto a hidden <input> for non-Chromium fallback
-  } = useFileManager();
+  } = useFileManager({
+    initialCode: "",
+    initialLanguage: "unknown",
+    initialName: "",
+  });
 
   const [theme] = useState<string>("vs-dark");
 
   // Holds the in-memory contents and dirty state for every placeholder file.
   // Initialized once from the demo tree plus the default temp.py tab that is
   // open on first render.
-  const [files, setFiles] = useState<FileMap>(() => ({
-    ...treeToMap(sampleFileTree),
-    "temp.py": {
-      name: "temp.py",
-      contents: "def helloWorld():\n  return 'Hello World'\n",
-      isDirty: false,
-    },
-  }));
+  const [files, setFiles] = useState<FileMap>(() => ({}));
 
   const [activeFilePath, setActiveFilePath] = useState<string>();
+
+  const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
+  const [isTreeLoading, setIsTreeLoading] = useState(true);
+  const [treeError, setTreeError] = useState<string | null>(null);
+
+  // Load the workspace tree from the backend on initial render.
+  useEffect(() => {
+    async function loadWorkspaceTree() {
+      try {
+        setIsTreeLoading(true);
+        setTreeError(null);
+
+        const response = await fetch("http://127.0.0.1:4000/workspace/tree");
+
+        if (!response.ok) {
+          throw new Error("Failed to load workspace files");
+        }
+
+        const data = (await response.json()) as FileTreeResponse;
+
+        setWorkspaceTree(data.nodes);
+        setFiles((currentFiles) => ({
+          ...currentFiles,
+          ...treeToMap(data.nodes),
+        }));
+      } catch (error) {
+        setTreeError(
+          error instanceof Error ? error.message : "Failed to load workspace files"
+        );
+      } finally {
+        setIsTreeLoading(false);
+      }
+    }
+
+    loadWorkspaceTree();
+  }, []);
 
   // File tree section:
   // --------------------------------------------------------------------------------
@@ -211,7 +157,7 @@ export default function App() {
       return [...tabs, nextTab];
     });
 
-    LoadFileHelper(path);
+    void LoadFileHelper(path);
   };
 
   // Double-click a file in the tree: open it as a pinned tab. If it is already
@@ -236,43 +182,62 @@ export default function App() {
       return [...tabs, nextTab];
     });
 
-    LoadFileHelper(path);
+    void LoadFileHelper(path);
   }
 
   // Activates a file in the editor. Reads the latest contents and dirty state
   // from the FileMap and loads them into useFileManager so Monaco and the Save
   // button stay in sync with the active tab.
-  function LoadFileHelper(path: string) {
-    const file = files[path];
-    if (!file) return;
+  async function LoadFileHelper(path: string) {
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:4000/workspace/file?path=${encodeURIComponent(path)}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to load file contents");
+    }
+
+    const data = (await response.json()) as WorkspaceFileResponse;
+
+    const currentFile = files[path];
+
+    setFiles((currentFiles) => ({
+      ...currentFiles,
+      [path]: {
+        name: data.name,
+        contents: data.content,
+        isDirty: currentFile?.isDirty ?? false,
+      },
+    }));
 
     setActiveFileId(path);
     setActiveFilePath(path);
 
     openVirtualFile(
       {
-        name: file.name,
-        contents: file.contents,
+        name: data.name,
+        contents: data.content,
       },
-      file.isDirty
+      currentFile?.isDirty ?? false
+    );
+  } catch (error) {
+    setTreeError(
+      error instanceof Error ? error.message : "Failed to load file contents"
     );
   }
+}
 
   // Tab bar section:
   // --------------------------------------------------------------------------------
-  const [openFiles, setOpenFiles] = useState<OpenTab[]>([
-    {
-      id: "temp.py",
-      name: "temp.py",
-      isPreview: false,
-    },
-  ]);
-  const [activeFileId, setActiveFileId] = useState<string>("temp.py");
+  const [openFiles, setOpenFiles] = useState<OpenTab[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string>("");
+  const hasActiveFile = Boolean(activeFileId);
 
   // Click a tab: activate that file by loading its stored contents and dirty
   // state from the FileMap.
   const handleSelectTab = (id: string) => {
-    LoadFileHelper(id);
+    void LoadFileHelper(id);
   };
 
   // Save section:
@@ -281,19 +246,51 @@ export default function App() {
   // the FileMap and the hook. Real files opened from disk still use the File
   // System Access API (or download fallback) via saveFile().
   const handleSave = async () => {
-    if (isVirtualFile) {
-      setFiles((prev) => ({
-        ...prev,
-        [activeFileId]: {
-          ...prev[activeFileId],
-          isDirty: false,
-        },
-      }));
-      // Keep the hook's dirty flag in sync so the Save button disables itself.
-      setIsDirty(false);
-    } else {
-      await saveFile();
+    if (!hasActiveFile) {
+      return;
     }
+
+    if (!activeFileId) {
+      return;
+    }
+
+    if (isVirtualFile) {
+      try {
+        const response = await fetch("http://127.0.0.1:4000/workspace/file", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            path: activeFileId,
+            content: code,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save file");
+        }
+
+        setFiles((prev) => ({
+          ...prev,
+          [activeFileId]: {
+            ...prev[activeFileId],
+            contents: code,
+            isDirty: false,
+          },
+        }));
+
+        setIsDirty(false);
+      } catch (error) {
+        setTreeError(
+          error instanceof Error ? error.message : "Failed to save file"
+        );
+      }
+
+      return;
+    }
+
+    await saveFile();
   };
 
   // Basic layout: sidebar for file explorer + main editor area with header
@@ -305,12 +302,18 @@ export default function App() {
         <header className="h-12 px-4 flex items-center border-b border-neutral-800">
           Explorer
         </header>
-        <FileTree
-              nodes={sampleFileTree}
-              activePath={activeFilePath}
-              onSelectFile={handleSelectFile}
-              onOpenFile={handleOpenFile}
-            />
+        {isTreeLoading ? (
+          <p className="px-4 py-3 text-sm text-neutral-400">Loading files...</p>
+        ) : treeError ? (
+          <p className="px-4 py-3 text-sm text-red-400">{treeError}</p>
+        ) : (
+          <FileTree
+            nodes={workspaceTree}
+            activePath={activeFilePath}
+            onSelectFile={handleSelectFile}
+            onOpenFile={handleOpenFile}
+          />
+        )}
       </aside>
 
       {/* Main editor area */}
@@ -325,7 +328,7 @@ export default function App() {
             <button
               className="px-3 py-1 border rounded"
               onClick={handleSave}
-              disabled={!isDirty} // Save enabled only when there are changes
+              disabled={!hasActiveFile || !isDirty} // Save enabled only when there are changes
               title={isDirty ? "Save (changes present)" : "Nothing to save"}
             >
               Save
@@ -353,13 +356,23 @@ export default function App() {
           onSelectFile={handleSelectTab}
         />
 
-        <div className="flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0">
+          {!hasActiveFile ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-neutral-500 font-bold pointer-events-none">
+              Select a file to start editing
+            </div>
+          ) : null}  
+
           <Editor
             height="100%"
             language={language} // tracks extension (e.g., .py -> python)
             theme={theme}
             value={code}
             onChange={(v) => {
+              if (!hasActiveFile) {
+                return;
+              }
+
               // Update both the live Monaco buffer and the persisted FileMap
               // entry for the active file so edits survive tab switches.
               const nextCode = v ?? "";
@@ -373,7 +386,7 @@ export default function App() {
                 },
               }));
             }}
-            options={{ fontSize: 14, minimap: { enabled: false } }}
+            options={{ fontSize: 14, minimap: { enabled: false }, readOnly: !hasActiveFile }}
           />
         </div>
       </main>
