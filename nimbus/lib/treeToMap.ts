@@ -1,10 +1,6 @@
 import type { FileMap, TreeNode } from "@/types/workspace";
 
-// Convert the nested file tree into a flat FileMap keyed by relative path.
-//
-// The tree endpoint is allowed to return files with empty content because full
-// file contents are loaded lazily when a user opens a file. This function still
-// creates entries for those files so the tab bar can derive dirty state safely.
+// Flatten tree nodes into a file cache keyed by workspace-relative path.
 export function treeToMap(
   nodes: TreeNode[],
   parentPath = "",

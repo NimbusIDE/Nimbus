@@ -2,85 +2,70 @@
 
 import { useState } from "react";
 import Link from "next/link";
-// Refactor note:
-// The old sidebar JSX that lived directly in this file moved to ExplorerPanel.
-// The old Monaco editor wrapper JSX moved to EditorArea.
-// The shared workspace shapes that used to be local types in this file moved to
-// types/workspace.ts, so page.tsx no longer owns TreeNode, FileMap, or OpenTab.
 import { EditorArea } from "@/components/EditorArea";
 import { ExplorerPanel } from "@/components/ExplorerPanel";
 import { TabBar } from "@/components/TabBar";
 import { useFileManager } from "@/components/hooks/useFileManager";
-// Refactor note:
-// The old page-level tab state and file tree handlers moved to useOpenTabs.
-// The old page-level FileMap, file loading, file saving, and treeToMap usage
-// moved to useWorkspaceFiles, lib/workspaceApi.ts, and lib/treeToMap.ts.
-// The old useEffect that fetched /workspace/tree moved to useWorkspaceTree.
 import { useOpenTabs } from "@/components/hooks/useOpenTabs";
 import { useWorkspaceFiles } from "@/components/hooks/useWorkspaceFiles";
 import { useWorkspaceTree } from "@/components/hooks/useWorkspaceTree";
 
 export default function App() {
+  // useFileManager owns the currently displayed editor buffer and the browser
+  // file actions. It tracks the code text, dirty state, detected language, and
+  // the hidden input used when the File System Access API is not available.
   const {
     code,
-    setCode,          // call this in Editor onChange; it marks buffer dirty
+    setCode,
     isDirty,
     setIsDirty,
-    language,         // inferred from file extension on open/save-as
+    language,
     isVirtualFile,
     openFile,
     openVirtualFile,
     saveFile,
     saveFileAs,
-    fileInputProps,   // spread onto a hidden <input> for non-Chromium fallback
+    fileInputProps,
   } = useFileManager({
     initialCode: "",
     initialLanguage: "unknown",
     initialName: "",
   });
 
+  // Monaco receives the theme name as a string. Keeping it in state makes it
+  // easy to add a theme switcher later without changing the editor component.
   const [theme] = useState("vs-dark");
 
-  // This replaces the old local `files`, `setFiles`, `activeFilePath`, and
-  // `LoadFileHelper` code that used to live in page.tsx. That behavior now
-  // lives in components/hooks/useWorkspaceFiles.ts.
-  //
-  // useWorkspaceFiles keeps the editor's in-memory cache for backend-loaded
-  // files, preserves unsaved edits, and exposes save/load helpers for tabs.
+  // useWorkspaceFiles manages backend workspace files after they are selected.
+  // It caches file contents by path, remembers which file is active in the
+  // explorer, preserves unsaved edits between tab switches, and exposes helpers
+  // for loading, editing, and saving workspace files.
   const workspaceFiles = useWorkspaceFiles({
     openVirtualFile,
     setIsDirty,
   });
 
-  // This replaces the old local `openFiles`, `activeFileId`,
-  // `handleSelectFile`, `handleOpenFile`, and `handleSelectTab` code. The tab
-  // behavior now lives in components/hooks/useOpenTabs.ts.
-  //
-  // Open tabs are separate from file contents. A tab only says "this file is
-  // visible in the tab strip"; workspaceFiles owns what the editor should show.
+  // useOpenTabs manages the tab strip state. It decides which files are visible
+  // as tabs, which tab is active, and how single-click preview tabs differ from
+  // double-click opened tabs. When a tab needs content, it asks workspaceFiles
+  // to load that file into the editor.
   const tabs = useOpenTabs({
     loadFile: workspaceFiles.loadWorkspaceFile,
   });
 
-  // This replaces the old useEffect in page.tsx that fetched
-  // http://127.0.0.1:4000/workspace/tree directly. The fetch lifecycle now
-  // lives in components/hooks/useWorkspaceTree.ts, and the raw fetch helper
-  // lives in lib/workspaceApi.ts.
-  //
-  // After the tree loads, useWorkspaceFiles seeds the cache with lightweight
-  // entries so dirty-state lookups are safe before full file contents load.
+  // useWorkspaceTree loads the explorer tree from the backend. Once the tree is
+  // available, the file cache is seeded with lightweight file entries so the UI
+  // can safely look up names and dirty state before full contents are fetched.
   const workspaceTree = useWorkspaceTree({
     onTreeLoaded: workspaceFiles.seedFilesFromTree,
   });
 
-  // This combines the old tree error and file error display paths into one
-  // value for ExplorerPanel. Tree errors come from useWorkspaceTree; file
-  // load/save errors come from useWorkspaceFiles.
+  // The sidebar has one error display area, so tree-loading errors and file
+  // load/save errors are combined into a single message value.
   const activeError = workspaceTree.treeError ?? workspaceFiles.fileError;
 
-  // This replaces the old inline backend save fetch in page.tsx. Backend file
-  // saves now go through useWorkspaceFiles -> lib/workspaceApi.ts. Local browser
-  // files still use saveFile from useFileManager.
+  // Save only runs when a tab is active. Workspace files are saved through the
+  // backend API, while browser-opened files still use useFileManager's saveFile.
   const handleSave = async () => {
     if (!tabs.activeFileId) {
       return;
@@ -96,7 +81,8 @@ export default function App() {
 
   return (
     <div className="h-screen flex overflow-hidden">
-      {/* The old inline <aside> sidebar moved to components/ExplorerPanel.tsx. */}
+      {/* ExplorerPanel renders the left sidebar, including loading/error states
+          and the clickable workspace file tree. */}
       <ExplorerPanel
         nodes={workspaceTree.workspaceTree}
         activePath={workspaceFiles.activeFilePath}
@@ -107,7 +93,8 @@ export default function App() {
       />
 
       <main className="flex-1 min-w-0 flex flex-col">
-        {/* This header stayed in page.tsx because it coordinates page actions. */}
+        {/* Header actions operate on the current editor state: open a local file,
+            save the active file, save a local copy, or navigate to login. */}
         <header className="p-3 border-b flex items-center gap-2">
           <span className="font-semibold">VS Lite - Editor</span>
 
@@ -131,13 +118,13 @@ export default function App() {
             </Link>
           </div>
 
-          {/* Hidden input used by useFileManager as a fallback for file opening. */}
+          {/* Hidden input used by useFileManager as a fallback file picker. */}
           <input {...fileInputProps} suppressHydrationWarning />
         </header>
 
-        {/* TabBar stayed presentational; tab state and selection behavior moved
-            to components/hooks/useOpenTabs.ts. Dirty state comes from the
-            workspace file cache in components/hooks/useWorkspaceFiles.ts. */}
+        {/* TabBar receives display-ready tab data. Dirty state is derived from
+            the file cache so each tab can show whether its file has unsaved
+            changes without storing the full file contents inside the tab. */}
         <TabBar
           files={tabs.openFiles.map((tab) => ({
             ...tab,
@@ -147,9 +134,9 @@ export default function App() {
           onSelectFile={tabs.selectTab}
         />
 
-        {/* The old inline <Editor> block moved to components/EditorArea.tsx.
-            page.tsx still passes the current editor state and keeps the cache
-            updated when Monaco changes. */}
+        {/* EditorArea renders Monaco and disables editing until a file is active.
+            Every edit updates both Monaco's live buffer and the workspace file
+            cache so switching tabs restores the latest unsaved text. */}
         <EditorArea
           code={code}
           language={language}

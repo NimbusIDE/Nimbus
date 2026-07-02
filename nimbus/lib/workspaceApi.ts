@@ -1,10 +1,6 @@
 import type { FileTreeResponse, WorkspaceFileResponse } from "@/types/workspace";
 
-// Single place for frontend workspace API calls.
-//
-// page.tsx and hooks should not need to know the exact backend URLs. When the
-// API base URL moves to an environment variable later, this is the only file
-// that should need to change.
+// Shared helpers for workspace API requests.
 const WORKSPACE_API_BASE_URL = "http://127.0.0.1:4000";
 
 export async function fetchWorkspaceTree(): Promise<FileTreeResponse> {
