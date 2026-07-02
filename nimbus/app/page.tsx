@@ -1,65 +1,24 @@
-"use client"
-import { useState, useEffect } from "react";
-import Editor from "@monaco-editor/react";
-import { FileTree, type TreeNode } from "@/components/FileTree";
-import { TabBar } from "@/components/TabBar";
-import { useFileManager } from "@/components/hooks/useFileManager"
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-
-// Single source of truth for all placeholder files loaded in the editor.
-// Keyed by file path (e.g. "app/page.tsx") so switching tabs is O(1) and each
-// file keeps its own contents string, preventing edits from bleeding across files.
-type FileMap = Record<
-  string,
-  {
-    name: string;
-    contents: string;
-    isDirty: boolean;
-  }
->;
-
-// Response from the backend when fetching the workspace tree. Contains an array of TreeNode objects.
-type FileTreeResponse = {
-  nodes: TreeNode[];
-};
-
-// Response from the backend when reading a file. Includes the file's path,
-type WorkspaceFileResponse = {
-  path: string;
-  name: string;
-  content: string;
-};
-
-// Lightweight tab metadata. Tabs do not store file contents or dirty state;
-// those live in FileMap. The dirty dot is derived from FileMap at render time.
-type OpenTab = {
-  id: string;
-  name: string;
-  isPreview: boolean;
-};
-
-// Walks the demo file tree and flattens every file into a FileMap entry.
-// Folders are recursed into; only files are added, keyed by their full path.
-function treeToMap(
-  nodes: TreeNode[],
-  parentPath = "",
-  map: FileMap = {}
-): FileMap {  
-  for (const node of nodes) {
-    const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-    if (node.type === "file") {
-      map[currentPath] = {
-        name: node.name,
-        contents: node.content ?? "",
-        isDirty: false,
-      };
-    } else if (node.type === "folder" && node.children) {
-      treeToMap(node.children, currentPath, map);
-    }
-  }
-
-  return map;
-}
+// Refactor note:
+// The old sidebar JSX that lived directly in this file moved to ExplorerPanel.
+// The old Monaco editor wrapper JSX moved to EditorArea.
+// The shared workspace shapes that used to be local types in this file moved to
+// types/workspace.ts, so page.tsx no longer owns TreeNode, FileMap, or OpenTab.
+import { EditorArea } from "@/components/EditorArea";
+import { ExplorerPanel } from "@/components/ExplorerPanel";
+import { TabBar } from "@/components/TabBar";
+import { useFileManager } from "@/components/hooks/useFileManager";
+// Refactor note:
+// The old page-level tab state and file tree handlers moved to useOpenTabs.
+// The old page-level FileMap, file loading, file saving, and treeToMap usage
+// moved to useWorkspaceFiles, lib/workspaceApi.ts, and lib/treeToMap.ts.
+// The old useEffect that fetched /workspace/tree moved to useWorkspaceTree.
+import { useOpenTabs } from "@/components/hooks/useOpenTabs";
+import { useWorkspaceFiles } from "@/components/hooks/useWorkspaceFiles";
+import { useWorkspaceTree } from "@/components/hooks/useWorkspaceTree";
 
 export default function App() {
   const {
@@ -80,246 +39,77 @@ export default function App() {
     initialName: "",
   });
 
-  const [theme] = useState<string>("vs-dark");
+  const [theme] = useState("vs-dark");
 
-  // Holds the in-memory contents and dirty state for every placeholder file.
-  // Initialized once from the demo tree plus the default temp.py tab that is
-  // open on first render.
-  const [files, setFiles] = useState<FileMap>(() => ({}));
+  // This replaces the old local `files`, `setFiles`, `activeFilePath`, and
+  // `LoadFileHelper` code that used to live in page.tsx. That behavior now
+  // lives in components/hooks/useWorkspaceFiles.ts.
+  //
+  // useWorkspaceFiles keeps the editor's in-memory cache for backend-loaded
+  // files, preserves unsaved edits, and exposes save/load helpers for tabs.
+  const workspaceFiles = useWorkspaceFiles({
+    openVirtualFile,
+    setIsDirty,
+  });
 
-  const [activeFilePath, setActiveFilePath] = useState<string>();
+  // This replaces the old local `openFiles`, `activeFileId`,
+  // `handleSelectFile`, `handleOpenFile`, and `handleSelectTab` code. The tab
+  // behavior now lives in components/hooks/useOpenTabs.ts.
+  //
+  // Open tabs are separate from file contents. A tab only says "this file is
+  // visible in the tab strip"; workspaceFiles owns what the editor should show.
+  const tabs = useOpenTabs({
+    loadFile: workspaceFiles.loadWorkspaceFile,
+  });
 
-  const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
-  const [isTreeLoading, setIsTreeLoading] = useState(true);
-  const [treeError, setTreeError] = useState<string | null>(null);
+  // This replaces the old useEffect in page.tsx that fetched
+  // http://127.0.0.1:4000/workspace/tree directly. The fetch lifecycle now
+  // lives in components/hooks/useWorkspaceTree.ts, and the raw fetch helper
+  // lives in lib/workspaceApi.ts.
+  //
+  // After the tree loads, useWorkspaceFiles seeds the cache with lightweight
+  // entries so dirty-state lookups are safe before full file contents load.
+  const workspaceTree = useWorkspaceTree({
+    onTreeLoaded: workspaceFiles.seedFilesFromTree,
+  });
 
-  // Load the workspace tree from the backend on initial render.
-  useEffect(() => {
-    async function loadWorkspaceTree() {
-      try {
-        setIsTreeLoading(true);
-        setTreeError(null);
+  // This combines the old tree error and file error display paths into one
+  // value for ExplorerPanel. Tree errors come from useWorkspaceTree; file
+  // load/save errors come from useWorkspaceFiles.
+  const activeError = workspaceTree.treeError ?? workspaceFiles.fileError;
 
-        const response = await fetch("http://127.0.0.1:4000/workspace/tree");
-
-        if (!response.ok) {
-          throw new Error("Failed to load workspace files");
-        }
-
-        const data = (await response.json()) as FileTreeResponse;
-
-        setWorkspaceTree(data.nodes);
-        setFiles((currentFiles) => ({
-          ...currentFiles,
-          ...treeToMap(data.nodes),
-        }));
-      } catch (error) {
-        setTreeError(
-          error instanceof Error ? error.message : "Failed to load workspace files"
-        );
-      } finally {
-        setIsTreeLoading(false);
-      }
-    }
-
-    loadWorkspaceTree();
-  }, []);
-
-  // File tree section:
-  // --------------------------------------------------------------------------------
-  // Single-click a file in the tree: open it as a preview tab (replacing any
-  // existing preview) or activate it if already open. Contents always come from
-  // the FileMap, never the original tree constant, so in-memory edits survive.
-  const handleSelectFile = (node: TreeNode, path: string) => {
-    const nextTab: OpenTab = {
-      id: path,
-      name: node.name,
-      isPreview: true,
-    };
-
-    // If already open, keep as is (e.g., if already open as preview, keep as preview; if open as normal, keep as normal).
-    setOpenFiles((tabs) => {
-      const alreadyOpen = tabs.some((tab) => tab.id === path);
-
-      if (alreadyOpen) {
-        return tabs;
-      }
-
-      const activeTab = tabs.find((tab) => tab.id === activeFileId);
-
-      // If not already open, open as preview (which may replace an existing preview)
-      if (activeTab?.isPreview) {
-        return tabs.map((tab) =>
-          tab.id === activeFileId ? nextTab : tab
-        );
-      }
-
-      return [...tabs, nextTab];
-    });
-
-    void LoadFileHelper(path);
-  };
-
-  // Double-click a file in the tree: open it as a pinned tab. If it is already
-  // open, convert it from preview to pinned. Like handleSelectFile, contents are
-  // read from the FileMap so in-memory edits are preserved.
-  const handleOpenFile = (node: TreeNode, path: string) => {
-    const nextTab: OpenTab = {
-      id: path,
-      name: node.name,
-      isPreview: false,
-    };
-
-    setOpenFiles((tabs) => {
-      const alreadyOpen = tabs.some((tab) => tab.id === path);
-
-      if (alreadyOpen) {
-        return tabs.map((tab) =>
-          tab.id === path ? { ...tab, isPreview: false } : tab
-        );
-      }
-
-      return [...tabs, nextTab];
-    });
-
-    void LoadFileHelper(path);
-  }
-
-  // Activates a file in the editor. Reads the latest contents and dirty state
-  // from the FileMap and loads them into useFileManager so Monaco and the Save
-  // button stay in sync with the active tab.
-  async function LoadFileHelper(path: string) {
-  try {
-    const response = await fetch(
-      `http://127.0.0.1:4000/workspace/file?path=${encodeURIComponent(path)}`
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to load file contents");
-    }
-
-    const data = (await response.json()) as WorkspaceFileResponse;
-
-    const currentFile = files[path];
-
-    setFiles((currentFiles) => ({
-      ...currentFiles,
-      [path]: {
-        name: data.name,
-        contents: data.content,
-        isDirty: currentFile?.isDirty ?? false,
-      },
-    }));
-
-    setActiveFileId(path);
-    setActiveFilePath(path);
-
-    openVirtualFile(
-      {
-        name: data.name,
-        contents: data.content,
-      },
-      currentFile?.isDirty ?? false
-    );
-  } catch (error) {
-    setTreeError(
-      error instanceof Error ? error.message : "Failed to load file contents"
-    );
-  }
-}
-
-  // Tab bar section:
-  // --------------------------------------------------------------------------------
-  const [openFiles, setOpenFiles] = useState<OpenTab[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string>("");
-  const hasActiveFile = Boolean(activeFileId);
-
-  // Click a tab: activate that file by loading its stored contents and dirty
-  // state from the FileMap.
-  const handleSelectTab = (id: string) => {
-    void LoadFileHelper(id);
-  };
-
-  // Save section:
-  // --------------------------------------------------------------------------------
-  // Placeholder files are saved in-memory only: clear the dirty marker in both
-  // the FileMap and the hook. Real files opened from disk still use the File
-  // System Access API (or download fallback) via saveFile().
+  // This replaces the old inline backend save fetch in page.tsx. Backend file
+  // saves now go through useWorkspaceFiles -> lib/workspaceApi.ts. Local browser
+  // files still use saveFile from useFileManager.
   const handleSave = async () => {
-    if (!hasActiveFile) {
-      return;
-    }
-
-    if (!activeFileId) {
+    if (!tabs.activeFileId) {
       return;
     }
 
     if (isVirtualFile) {
-      try {
-        const response = await fetch("http://127.0.0.1:4000/workspace/file", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            path: activeFileId,
-            content: code,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to save file");
-        }
-
-        setFiles((prev) => ({
-          ...prev,
-          [activeFileId]: {
-            ...prev[activeFileId],
-            contents: code,
-            isDirty: false,
-          },
-        }));
-
-        setIsDirty(false);
-      } catch (error) {
-        setTreeError(
-          error instanceof Error ? error.message : "Failed to save file"
-        );
-      }
-
+      await workspaceFiles.saveActiveWorkspaceFile(tabs.activeFileId, code);
       return;
     }
 
     await saveFile();
   };
 
-  // Basic layout: sidebar for file explorer + main editor area with header
-  // No 'New' button because hook is load/save-only per your request
   return (
     <div className="h-screen flex overflow-hidden">
-      {/* Static sidebar for file explorer */}
-      <aside className="w-[15vw] shrink-0 bg-neutral-900 text-neutral-100">
-        <header className="h-12 px-4 flex items-center border-b border-neutral-800">
-          Explorer
-        </header>
-        {isTreeLoading ? (
-          <p className="px-4 py-3 text-sm text-neutral-400">Loading files...</p>
-        ) : treeError ? (
-          <p className="px-4 py-3 text-sm text-red-400">{treeError}</p>
-        ) : (
-          <FileTree
-            nodes={workspaceTree}
-            activePath={activeFilePath}
-            onSelectFile={handleSelectFile}
-            onOpenFile={handleOpenFile}
-          />
-        )}
-      </aside>
+      {/* The old inline <aside> sidebar moved to components/ExplorerPanel.tsx. */}
+      <ExplorerPanel
+        nodes={workspaceTree.workspaceTree}
+        activePath={workspaceFiles.activeFilePath}
+        isLoading={workspaceTree.isTreeLoading}
+        error={activeError}
+        onSelectFile={tabs.selectFile}
+        onOpenFile={tabs.openFile}
+      />
 
-      {/* Main editor area */}
       <main className="flex-1 min-w-0 flex flex-col">
+        {/* This header stayed in page.tsx because it coordinates page actions. */}
         <header className="p-3 border-b flex items-center gap-2">
-          <span className="font-semibold">VS Lite — Editor</span>
+          <span className="font-semibold">VS Lite - Editor</span>
 
           <div className="ml-auto flex items-center gap-2">
             <button className="px-3 py-1 border rounded" onClick={openFile}>
@@ -328,7 +118,7 @@ export default function App() {
             <button
               className="px-3 py-1 border rounded"
               onClick={handleSave}
-              disabled={!hasActiveFile || !isDirty} // Save enabled only when there are changes
+              disabled={!tabs.hasActiveFile || !isDirty}
               title={isDirty ? "Save (changes present)" : "Nothing to save"}
             >
               Save
@@ -341,56 +131,43 @@ export default function App() {
             </Link>
           </div>
 
-          {/* Hidden input for Safari/Firefox open fallback */}
-          <input {...fileInputProps} suppressHydrationWarning/>
+          {/* Hidden input used by useFileManager as a fallback for file opening. */}
+          <input {...fileInputProps} suppressHydrationWarning />
         </header>
-  
-        {/* Tab bar for open files */}
-        {/* Derive the dirty dot from the FileMap so it survives tab switches. */}
+
+        {/* TabBar stayed presentational; tab state and selection behavior moved
+            to components/hooks/useOpenTabs.ts. Dirty state comes from the
+            workspace file cache in components/hooks/useWorkspaceFiles.ts. */}
         <TabBar
-          files={openFiles.map((tab) => ({
+          files={tabs.openFiles.map((tab) => ({
             ...tab,
-            isDirty: files[tab.id]?.isDirty ?? false,
+            isDirty: workspaceFiles.files[tab.id]?.isDirty ?? false,
           }))}
-          activeFileId={activeFileId ?? ""}
-          onSelectFile={handleSelectTab}
+          activeFileId={tabs.activeFileId}
+          onSelectFile={tabs.selectTab}
         />
 
-        <div className="relative flex-1 min-h-0">
-          {!hasActiveFile ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-neutral-500 font-bold pointer-events-none">
-              Select a file to start editing
-            </div>
-          ) : null}  
+        {/* The old inline <Editor> block moved to components/EditorArea.tsx.
+            page.tsx still passes the current editor state and keeps the cache
+            updated when Monaco changes. */}
+        <EditorArea
+          code={code}
+          language={language}
+          theme={theme}
+          hasActiveFile={tabs.hasActiveFile}
+          onChange={(value) => {
+            if (!tabs.activeFileId) {
+              return;
+            }
 
-          <Editor
-            height="100%"
-            language={language} // tracks extension (e.g., .py -> python)
-            theme={theme}
-            value={code}
-            onChange={(v) => {
-              if (!hasActiveFile) {
-                return;
-              }
-
-              // Update both the live Monaco buffer and the persisted FileMap
-              // entry for the active file so edits survive tab switches.
-              const nextCode = v ?? "";
-              setCode(nextCode);
-              setFiles((prev) => ({
-                ...prev,
-                [activeFileId]: {
-                  ...prev[activeFileId],
-                  contents: nextCode,
-                  isDirty: true,
-                },
-              }));
-            }}
-            options={{ fontSize: 14, minimap: { enabled: false }, readOnly: !hasActiveFile }}
-          />
-        </div>
+            // Keep Monaco and the workspace cache in sync so switching away
+            // from this tab and back restores the user's unsaved edits.
+            const nextCode = value ?? "";
+            setCode(nextCode);
+            workspaceFiles.updateActiveFileContents(tabs.activeFileId, nextCode);
+          }}
+        />
       </main>
     </div>
   );
-
 }

@@ -1,12 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { File, FileCode, FileJson, Folder } from "lucide-react";
+import type { TreeNode } from "@/types/workspace";
 
-export type TreeNode = {
-  name: string;
-  type: "file" | "folder";
-  content?: string;
-  children?: TreeNode[];
-};
+export type { TreeNode } from "@/types/workspace";
 
 type FileTreeProps = {
   nodes: TreeNode[];
@@ -117,7 +113,7 @@ function TreeNodeRow({
         <span>{label}</span>
         {isFolder ? (
           <span className="ml-auto text-neutral-500" aria-hidden="true">
-            {isExpanded ? "" : "↓"}
+            {isExpanded ? "" : ">"}
           </span>
         ) : null}
       </button>
@@ -161,6 +157,12 @@ export function FileTree({ nodes, activePath, onSelectFile, onOpenFile }: FileTr
   const [expandedFolders, setExpandedFolders] = useState(
     () => new Set(getInitialExpandedFolders(nodes))
   );
+
+  // The workspace tree arrives asynchronously from the backend. When the nodes
+  // change, expand folders again so the loaded project is visible immediately.
+  useEffect(() => {
+    setExpandedFolders(new Set(getInitialExpandedFolders(nodes)));
+  }, [nodes]);
 
   // Toggle a folder path while preserving all other expanded/collapsed folders.
   const handleToggleFolder = (path: string) => {
