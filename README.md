@@ -23,8 +23,12 @@ Built with a cloud-native architecture designed for performance and growth.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v18 or later
-- npm (included with Node.js)
+To keep everyone on an identical toolchain (and avoid `package-lock.json` churn between machines), Nimbus pins its Node and npm versions:
+
+- **Node.js `22.11.0`** (Node 22 LTS) — pinned via `.nvmrc` / `.node-version`
+- **npm `11.4.2`** — pinned via the `packageManager` field and activated through [Corepack](https://nodejs.org/api/corepack.html)
+
+These versions are enforced: `.npmrc` sets `engine-strict=true`, so `npm install` will fail fast if your Node/npm is out of range. Use a version manager such as [nvm](https://github.com/nvm-sh/nvm), [fnm](https://github.com/Schniz/fnm), or [asdf](https://asdf-vm.com/) to switch automatically.
 
 ### Installation
 
@@ -34,7 +38,18 @@ Built with a cloud-native architecture designed for performance and growth.
    cd Nimbus
    ```
 
-2. Install all workspace dependencies from the repository root:
+2. Select the pinned Node version (reads `.nvmrc` / `.node-version`):
+   ```bash
+   nvm install   # first time only
+   nvm use       # or: fnm use / asdf install
+   ```
+
+3. Enable Corepack so the pinned `npm@11.4.2` is used (one-time per machine):
+   ```bash
+   corepack enable
+   ```
+
+4. Install all workspace dependencies from the repository root:
    ```bash
    npm install
    ```

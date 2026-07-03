@@ -16,6 +16,11 @@
     "start:server": "npm run start --workspace server",
     "lint": "bash lint/run.sh"
   },
+  "engines": {
+    "node": ">=22.9.0 <23",
+    "npm": ">=11.0.0 <12"
+  },
+  "packageManager": "npm@11.4.2",
   "devDependencies": {
     "concurrently": "^9.0.0"
   }
