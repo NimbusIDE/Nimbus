@@ -25,7 +25,7 @@ Built with a cloud-native architecture designed for performance and growth.
 
 To keep everyone on an identical toolchain (and avoid `package-lock.json` churn between machines), Nimbus pins its **Node** version. npm ships with Node, so pinning Node also pins npm — there's no separate npm step.
 
-- **Node.js `22.11.0`** (Node 22 LTS) — pinned via `.nvmrc` / `.node-version` (bundles npm `10.9.0`)
+- **Node.js `22.23.1`** (Node 22 LTS) — pinned via `.nvmrc` / `.node-version` (bundles npm `10.9.x`)
 
 This is enforced: `.npmrc` sets `engine-strict=true`, so `npm install` fails fast if you're not on Node 22.x.
 
@@ -35,10 +35,15 @@ We recommend [**fnm**](https://github.com/Schniz/fnm) as the version manager —
   ```bash
   eval "$(fnm env --use-on-cd)"
   ```
-- **Windows:** `winget install Schniz.fnm` (or `scoop install fnm`), then add to your PowerShell `$PROFILE`:
-  ```powershell
-  fnm env --use-on-cd | Out-String | Invoke-Expression
-  ```
+- **Windows:** `winget install Schniz.fnm` (or `scoop install fnm`), then add the shell hook for whichever shell you use:
+  - **PowerShell** — add to your `$PROFILE`:
+    ```powershell
+    fnm env --use-on-cd | Out-String | Invoke-Expression
+    ```
+  - **Git Bash** — add to `~/.bashrc`:
+    ```bash
+    eval "$(fnm env --use-on-cd --shell bash)"
+    ```
 
 With the hook in place, fnm switches to the pinned Node version automatically when you `cd` into the repo.
 
@@ -52,7 +57,7 @@ With the hook in place, fnm switches to the pinned Node version automatically wh
 
 2. Activate the pinned Node version (reads `.nvmrc` / `.node-version`):
    ```bash
-   fnm install   # first time only — installs Node 22.11.0
+   fnm install   # first time only — installs Node 22.23.1
    fnm use
    ```
 
