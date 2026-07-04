@@ -23,12 +23,24 @@ Built with a cloud-native architecture designed for performance and growth.
 
 ### Prerequisites
 
-To keep everyone on an identical toolchain (and avoid `package-lock.json` churn between machines), Nimbus pins its Node and npm versions:
+To keep everyone on an identical toolchain (and avoid `package-lock.json` churn between machines), Nimbus pins its **Node** version. npm ships with Node, so pinning Node also pins npm — there's no separate npm step.
 
-- **Node.js `22.11.0`** (Node 22 LTS) — pinned via `.nvmrc` / `.node-version`
-- **npm `11.4.2`** — pinned via the `packageManager` field and activated through [Corepack](https://nodejs.org/api/corepack.html)
+- **Node.js `22.11.0`** (Node 22 LTS) — pinned via `.nvmrc` / `.node-version` (bundles npm `10.9.0`)
 
-These versions are enforced: `.npmrc` sets `engine-strict=true`, so `npm install` will fail fast if your Node/npm is out of range. Use a version manager such as [nvm](https://github.com/nvm-sh/nvm), [fnm](https://github.com/Schniz/fnm), or [asdf](https://asdf-vm.com/) to switch automatically.
+This is enforced: `.npmrc` sets `engine-strict=true`, so `npm install` fails fast if you're not on Node 22.x.
+
+We recommend [**fnm**](https://github.com/Schniz/fnm) as the version manager — it's fast, cross-platform, and reads `.node-version` / `.nvmrc` automatically:
+
+- **macOS:** `brew install fnm`, then add the shell hook to `~/.zshrc`:
+  ```bash
+  eval "$(fnm env --use-on-cd)"
+  ```
+- **Windows:** `winget install Schniz.fnm` (or `scoop install fnm`), then add to your PowerShell `$PROFILE`:
+  ```powershell
+  fnm env --use-on-cd | Out-String | Invoke-Expression
+  ```
+
+With the hook in place, fnm switches to the pinned Node version automatically when you `cd` into the repo.
 
 ### Installation
 
@@ -38,25 +50,20 @@ These versions are enforced: `.npmrc` sets `engine-strict=true`, so `npm install
    cd Nimbus
    ```
 
-2. Select the pinned Node version (reads `.nvmrc` / `.node-version`):
+2. Activate the pinned Node version (reads `.nvmrc` / `.node-version`):
    ```bash
-   nvm install   # first time only
-   nvm use       # or: fnm use / asdf install
+   fnm install   # first time only — installs Node 22.11.0
+   fnm use
    ```
 
-3. Enable Corepack so the pinned `npm@11.4.2` is used (one-time per machine):
-   ```bash
-   corepack enable
-   ```
-
-4. Install all workspace dependencies from the repository root:
+3. Install all workspace dependencies from the repository root:
    ```bash
    npm install
    ```
 
    This installs dependencies for the frontend app in `nimbus/`, the backend API in `nimbus/server/`, and the root workspace tools.
 
-3. Create a local backend environment file:
+4. Create a local backend environment file:
    ```bash
    cd nimbus/server
    cp .env.example .env
