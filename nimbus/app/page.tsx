@@ -1,9 +1,9 @@
-"use client"
+"use client";
 import { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { FileTree, type TreeNode } from "@/components/FileTree";
 import { TabBar } from "@/components/TabBar";
-import { useFileManager } from "@/components/hooks/useFileManager"
+import { useFileManager } from "@/components/hooks/useFileManager";
 import Link from "next/link";
 
 // Single source of truth for all placeholder files loaded in the editor.
@@ -31,8 +31,8 @@ type OpenTab = {
 function treeToMap(
   nodes: TreeNode[],
   parentPath = "",
-  map: FileMap = {}
-): FileMap {  
+  map: FileMap = {},
+): FileMap {
   for (const node of nodes) {
     const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
     if (node.type === "file") {
@@ -151,16 +151,16 @@ export default {
 export default function App() {
   const {
     code,
-    setCode,          // call this in Editor onChange; it marks buffer dirty
+    setCode, // call this in Editor onChange; it marks buffer dirty
     isDirty,
     setIsDirty,
-    language,         // inferred from file extension on open/save-as
+    language, // inferred from file extension on open/save-as
     isVirtualFile,
     openFile,
     openVirtualFile,
     saveFile,
     saveFileAs,
-    fileInputProps,   // spread onto a hidden <input> for non-Chromium fallback
+    fileInputProps, // spread onto a hidden <input> for non-Chromium fallback
   } = useFileManager();
 
   const [theme] = useState<string>("vs-dark");
@@ -203,9 +203,7 @@ export default function App() {
 
       // If not already open, open as preview (which may replace an existing preview)
       if (activeTab?.isPreview) {
-        return tabs.map((tab) =>
-          tab.id === activeFileId ? nextTab : tab
-        );
+        return tabs.map((tab) => (tab.id === activeFileId ? nextTab : tab));
       }
 
       return [...tabs, nextTab];
@@ -229,7 +227,7 @@ export default function App() {
 
       if (alreadyOpen) {
         return tabs.map((tab) =>
-          tab.id === path ? { ...tab, isPreview: false } : tab
+          tab.id === path ? { ...tab, isPreview: false } : tab,
         );
       }
 
@@ -237,7 +235,7 @@ export default function App() {
     });
 
     LoadFileHelper(path);
-  }
+  };
 
   // Activates a file in the editor. Reads the latest contents and dirty state
   // from the FileMap and loads them into useFileManager so Monaco and the Save
@@ -254,7 +252,7 @@ export default function App() {
         name: file.name,
         contents: file.contents,
       },
-      file.isDirty
+      file.isDirty,
     );
   }
 
@@ -306,11 +304,11 @@ export default function App() {
           Explorer
         </header>
         <FileTree
-              nodes={sampleFileTree}
-              activePath={activeFilePath}
-              onSelectFile={handleSelectFile}
-              onOpenFile={handleOpenFile}
-            />
+          nodes={sampleFileTree}
+          activePath={activeFilePath}
+          onSelectFile={handleSelectFile}
+          onOpenFile={handleOpenFile}
+        />
       </aside>
 
       {/* Main editor area */}
@@ -339,9 +337,9 @@ export default function App() {
           </div>
 
           {/* Hidden input for Safari/Firefox open fallback */}
-          <input {...fileInputProps} suppressHydrationWarning/>
+          <input {...fileInputProps} suppressHydrationWarning />
         </header>
-  
+
         {/* Tab bar for open files */}
         {/* Derive the dirty dot from the FileMap so it survives tab switches. */}
         <TabBar
@@ -379,5 +377,4 @@ export default function App() {
       </main>
     </div>
   );
-
 }

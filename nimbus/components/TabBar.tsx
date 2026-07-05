@@ -16,16 +16,16 @@ type TabBarProps = {
 // This is a simple tab bar component that displays open files and their dirty state.
 // It also allows switching between files by clicking on the tabs.
 export function TabBar({ files, activeFileId, onSelectFile }: TabBarProps) {
-
   // Helper to get files with duplicate names
   const duplicatedNames = new Set(
     files
       .filter((file) =>
-        files.some((otherFile) =>
-          otherFile.id !== file.id && otherFile.name === file.name
-        )
+        files.some(
+          (otherFile) =>
+            otherFile.id !== file.id && otherFile.name === file.name,
+        ),
       )
-      .map((file) => file.name)
+      .map((file) => file.name),
   );
 
   // Helper to get the folder path of a file
@@ -62,9 +62,7 @@ export function TabBar({ files, activeFileId, onSelectFile }: TabBarProps) {
             <span>{file.name}</span>
 
             {showPath && folderPath ? (
-              <span className="text-xs text-neutral-500">
-                {folderPath}
-              </span>
+              <span className="text-xs text-neutral-500">{folderPath}</span>
             ) : null}
 
             {file.isDirty ? <span>•</span> : null}

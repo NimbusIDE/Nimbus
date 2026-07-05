@@ -74,11 +74,11 @@ Expected response:
 
 The server reads config from `.env`.
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `NODE_ENV` | `development` | Runtime environment |
-| `HOST` | `127.0.0.1` | Host address for the API server |
-| `PORT` | `4000` | Port for the API server |
+| Variable      | Default                 | Description                             |
+| ------------- | ----------------------- | --------------------------------------- |
+| `NODE_ENV`    | `development`           | Runtime environment                     |
+| `HOST`        | `127.0.0.1`             | Host address for the API server         |
+| `PORT`        | `4000`                  | Port for the API server                 |
 | `CORS_ORIGIN` | `http://localhost:3000` | Frontend origin allowed to call the API |
 
 ## Project Structure
@@ -97,18 +97,18 @@ The `ws` folder is reserved for terminal streaming work. Terminal sessions are n
 
 From the repository root:
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the frontend and backend together |
-| `npm run dev:server` | Start only this Fastify API server |
-| `npm run build:server` | Build only this API server |
+| Command                | Description                             |
+| ---------------------- | --------------------------------------- |
+| `npm run dev`          | Start the frontend and backend together |
+| `npm run dev:server`   | Start only this Fastify API server      |
+| `npm run build:server` | Build only this API server              |
 
 From `C:\Nimbus\nimbus\server`:
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the API server with watch mode |
-| `npm run build` | Compile TypeScript into `dist/` |
+| Command         | Description                          |
+| --------------- | ------------------------------------ |
+| `npm run dev`   | Start the API server with watch mode |
+| `npm run build` | Compile TypeScript into `dist/`      |
 | `npm run start` | Run the compiled server from `dist/` |
 
 ## Learn More
