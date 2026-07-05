@@ -23,7 +23,9 @@ type TreeNodeRowProps = {
 };
 
 function getFileIcon(name: string) {
-  const extension = name.includes(".") ? name.split(".").pop()?.toLowerCase() : undefined;
+  const extension = name.includes(".")
+    ? name.split(".").pop()?.toLowerCase()
+    : undefined;
 
   switch (extension) {
     case "json":
@@ -66,9 +68,9 @@ function TreeNodeRow({
   // single click previews a file after a short delay, while double click cancels
   // that preview and opens the file as a normal/persistent tab.
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   const Icon = getNodeIcon(node);
-  
+
   return (
     <li>
       <button
@@ -139,7 +141,10 @@ function TreeNodeRow({
   );
 }
 
-function getInitialExpandedFolders(nodes: TreeNode[], parentPath = ""): string[] {
+function getInitialExpandedFolders(
+  nodes: TreeNode[],
+  parentPath = "",
+): string[] {
   // Expand all folders by default so the hardcoded demo tree is immediately visible.
   return nodes.flatMap((node) => {
     const path = parentPath ? `${parentPath}/${node.name}` : node.name;
@@ -152,10 +157,15 @@ function getInitialExpandedFolders(nodes: TreeNode[], parentPath = ""): string[]
   });
 }
 
-export function FileTree({ nodes, activePath, onSelectFile, onOpenFile }: FileTreeProps) {
+export function FileTree({
+  nodes,
+  activePath,
+  onSelectFile,
+  onOpenFile,
+}: FileTreeProps) {
   // Track expanded folders locally because folder open/closed UI belongs to the tree.
   const [expandedFolders, setExpandedFolders] = useState(
-    () => new Set(getInitialExpandedFolders(nodes))
+    () => new Set(getInitialExpandedFolders(nodes)),
   );
 
   // The workspace tree arrives asynchronously from the backend. When the nodes

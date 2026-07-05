@@ -15,7 +15,11 @@ const nodes: TreeNode[] = [
     name: "app",
     type: "folder",
     children: [
-      { name: "page.tsx", type: "file", content: "export default function Page() {}" },
+      {
+        name: "page.tsx",
+        type: "file",
+        content: "export default function Page() {}",
+      },
       {
         name: "login",
         type: "folder",
@@ -31,9 +35,13 @@ describe("FileTree", () => {
     render(<FileTree nodes={nodes} onSelectFile={vi.fn()} />);
 
     // The tree itself and its items are visible.
-    expect(screen.getByRole("navigation", { name: "Project files" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Project files" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /app/ })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /page\.tsx/ })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /page\.tsx/ })).toHaveLength(
+      2,
+    );
 
     // Deeper nesting adds more left padding so the hierarchy is visually clear.
     expect(screen.getByRole("button", { name: /app/ })).toHaveStyle({
@@ -57,7 +65,9 @@ describe("FileTree", () => {
     await user.click(appFolder);
 
     expect(appFolder).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("button", { name: /login/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /login/ }),
+    ).not.toBeInTheDocument();
 
     // Clicking it again should restore the children and mark it as expanded.
     await user.click(appFolder);
@@ -75,7 +85,7 @@ describe("FileTree", () => {
         nodes={nodes}
         activePath="package.json"
         onSelectFile={onSelectFile}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: /package\.json/ }));
@@ -88,7 +98,7 @@ describe("FileTree", () => {
 
     // The active file should be highlighted immediately.
     expect(screen.getByRole("button", { name: /package\.json/ })).toHaveClass(
-      "bg-sky-900/50"
+      "bg-sky-900/50",
     );
   });
 });

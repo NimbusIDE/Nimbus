@@ -15,13 +15,19 @@ describe("FileToolbar", () => {
         onOpen={vi.fn()}
         onSave={vi.fn()}
         onRemove={vi.fn()}
-      />
+      />,
     );
 
-    expect(screen.getByRole("button", { name: "New File" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open File" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New File" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open File" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove File" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove File" }),
+    ).toBeInTheDocument();
   });
 
   it("calls the matching handler when each action is clicked", async () => {
@@ -37,7 +43,7 @@ describe("FileToolbar", () => {
         onOpen={onOpen}
         onSave={onSave}
         onRemove={onRemove}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "New File" }));
