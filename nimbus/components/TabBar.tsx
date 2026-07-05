@@ -1,10 +1,9 @@
+import type { OpenTab } from "@/types/workspace";
+
 // Render-only shape for a tab. It intentionally does not store file contents;
 // contents are managed by the parent and loaded into the editor on selection.
-export type OpenFileTab = {
-  id: string;
-  name: string;
+export type OpenFileTab = OpenTab & {
   isDirty: boolean;
-  isPreview: boolean;
 };
 
 type TabBarProps = {
