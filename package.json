@@ -14,12 +14,15 @@
     "build:server": "npm run build --workspace server",
     "start:frontend": "npm run start --workspace nimbus",
     "start:server": "npm run start --workspace server",
-    "lint": "bash lint/run.sh"
+    "lint": "bash lint/run.sh",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=22.12.0 <23"
   },
   "devDependencies": {
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "prettier": "3.9.4"
   }
 }
