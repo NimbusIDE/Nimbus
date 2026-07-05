@@ -1,0 +1,38 @@
+name: CI
+
+on: 
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'nimbus/server/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.nvmrc'
+            frontend:
+              - 'nimbus/**'
+              - '!nimbus/server/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.nvmrc'
+            workflows:
+              - '.github/workflows/**'
