@@ -88,3 +88,21 @@ jobs:
         uses: docker://rhysd/actionlint:latest
         with:
           args: -color
+
+  ci-ok:
+    needs: [changes, actionlint, frontend, backend, format]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs succeeded
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if [[ "${{contains(needs.*.result, 'failure')}}" == "true" ]]; then
+            echo "A required job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "A required job cancelled"
+            exit 1
+          fi
+          echo "All required jobs passed or were correctly skipped"
