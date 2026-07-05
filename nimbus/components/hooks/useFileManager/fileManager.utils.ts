@@ -1,6 +1,5 @@
 import type { Language } from "./fileManager.language";
 
-
 // Check the language based on the extension.
 // The returned value is also the Monaco language id (see fileManager.language.ts).
 export function inferLanguageFromName(name: string): Language {
@@ -23,13 +22,12 @@ export function inferLanguageFromName(name: string): Language {
   return "unknown";
 }
 
-
-export function downloadBlob(text: string, name: string){
-    const blob = new Blob([text], {type: "text/plain"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
+export function downloadBlob(text: string, name: string) {
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
 }

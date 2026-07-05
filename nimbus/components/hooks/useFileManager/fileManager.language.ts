@@ -1,4 +1,4 @@
-// hooks/useFileManager/fileManger.language.ts: 
+// hooks/useFileManager/fileManger.language.ts:
 // Define language support + metadata
 //
 // Scope (current):
@@ -38,13 +38,58 @@ export type LanguageMeta = {
 };
 
 export const LANGUAGE_META: Record<Language, LanguageMeta> = {
-    python:     { label: "Python",     icon: "/icons/python.svg",     monacoId: "python",     defaultExt: ".py" },
-    javascript: { label: "JavaScript", icon: "/icons/javascript.svg", monacoId: "javascript", defaultExt: ".js" },
-    typescript: { label: "TypeScript", icon: "/icons/typescript.svg", monacoId: "typescript", defaultExt: ".ts" },
-    json:       { label: "JSON",       icon: "/icons/json.svg",       monacoId: "json",       defaultExt: ".json" },
-    html:       { label: "HTML",       icon: "/icons/html.svg",       monacoId: "html",       defaultExt: ".html" },
-    css:        { label: "CSS",        icon: "/icons/css.svg",        monacoId: "css",        defaultExt: ".css" },
-    markdown:   { label: "Markdown",   icon: "/icons/markdown.svg",   monacoId: "markdown",   defaultExt: ".md" },
-    yaml:       { label: "YAML",       icon: "/icons/yaml.svg",       monacoId: "yaml",       defaultExt: ".yaml" },
-    unknown:    { label: "Unknown",    icon: "/icons/unknown.svg",    monacoId: "plaintext",  defaultExt: ".txt" },
+  python: {
+    label: "Python",
+    icon: "/icons/python.svg",
+    monacoId: "python",
+    defaultExt: ".py",
+  },
+  javascript: {
+    label: "JavaScript",
+    icon: "/icons/javascript.svg",
+    monacoId: "javascript",
+    defaultExt: ".js",
+  },
+  typescript: {
+    label: "TypeScript",
+    icon: "/icons/typescript.svg",
+    monacoId: "typescript",
+    defaultExt: ".ts",
+  },
+  json: {
+    label: "JSON",
+    icon: "/icons/json.svg",
+    monacoId: "json",
+    defaultExt: ".json",
+  },
+  html: {
+    label: "HTML",
+    icon: "/icons/html.svg",
+    monacoId: "html",
+    defaultExt: ".html",
+  },
+  css: {
+    label: "CSS",
+    icon: "/icons/css.svg",
+    monacoId: "css",
+    defaultExt: ".css",
+  },
+  markdown: {
+    label: "Markdown",
+    icon: "/icons/markdown.svg",
+    monacoId: "markdown",
+    defaultExt: ".md",
+  },
+  yaml: {
+    label: "YAML",
+    icon: "/icons/yaml.svg",
+    monacoId: "yaml",
+    defaultExt: ".yaml",
+  },
+  unknown: {
+    label: "Unknown",
+    icon: "/icons/unknown.svg",
+    monacoId: "plaintext",
+    defaultExt: ".txt",
+  },
 };

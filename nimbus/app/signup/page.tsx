@@ -8,7 +8,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [email, setEmail]=useState("")
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -76,7 +76,7 @@ export default function SignupPage() {
               className="w-full border rounded px-3 py-2 focus:outline-none focus:ring"
             />
           </div>
-                    <div>
+          <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input
               type="text"

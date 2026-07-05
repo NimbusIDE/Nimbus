@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function App() {
   const [code, setCode] = useState(
-    `function greet(n){ return "Hello, " + n; }\nconsole.log(greet("World"));`
+    `function greet(n){ return "Hello, " + n; }\nconsole.log(greet("World"));`,
   );
 
   return (
@@ -33,7 +33,7 @@ export default function App() {
       <div className="flex-1">
         <Editor
           height="100%"
-          defaultLanguage="python"  
+          defaultLanguage="python"
           theme="vs-dark"
           value={code}
           onChange={(v) => setCode(v ?? "")}

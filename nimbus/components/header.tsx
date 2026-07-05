@@ -11,8 +11,7 @@ const Header: React.FC = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
-          >
-          </motion.div>
+          ></motion.div>
         </div>
 
         {/* <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
@@ -20,11 +19,10 @@ const Header: React.FC = () => {
             Sign In
           </Button>
         </motion.div> */}
-            {/* <Link href="/signup">
+        {/* <Link href="/signup">
   <span>Sign Up</span>
 </Link> */}
       </div>
-
     </header>
 
     //   <header className="fixed top-0 left-0 z-50 w-full bg-white shadow-md">

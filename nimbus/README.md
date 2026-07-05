@@ -38,20 +38,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 From the repository root:
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the frontend and backend together |
-| `npm run dev:frontend` | Start only this Next.js frontend |
-| `npm run build:frontend` | Build only this frontend |
+| Command                  | Description                             |
+| ------------------------ | --------------------------------------- |
+| `npm run dev`            | Start the frontend and backend together |
+| `npm run dev:frontend`   | Start only this Next.js frontend        |
+| `npm run build:frontend` | Build only this frontend                |
 
 From `C:\Nimbus\nimbus`:
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the Next.js development server |
-| `npm run build` | Build the frontend for production |
+| Command         | Description                                 |
+| --------------- | ------------------------------------------- |
+| `npm run dev`   | Start the Next.js development server        |
+| `npm run build` | Build the frontend for production           |
 | `npm run start` | Start the production frontend after a build |
-| `npm run lint` | Run ESLint |
+| `npm run lint`  | Run ESLint                                  |
 
 ## Backend API
 

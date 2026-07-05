@@ -4,5 +4,5 @@ export function getHealthStatus() {
     status: "ok",
     service: "nimbus-api",
     uptime: process.uptime(),
-  }
+  };
 }

@@ -55,7 +55,7 @@ export default function App() {
     clearFile: () => {
       workspaceFiles.clearActiveFile();
       clearFile();
-    }
+    },
   });
 
   // useWorkspaceTree loads the explorer tree from the backend. Once the tree is
@@ -161,7 +161,10 @@ export default function App() {
             // from this tab and back restores the user's unsaved edits.
             const nextCode = value ?? "";
             setCode(nextCode);
-            workspaceFiles.updateActiveFileContents(tabs.activeFileId, nextCode);
+            workspaceFiles.updateActiveFileContents(
+              tabs.activeFileId,
+              nextCode,
+            );
           }}
         />
       </main>
