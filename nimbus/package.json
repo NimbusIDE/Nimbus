@@ -32,7 +32,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^20",
+    "@types/node": "^22.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
@@ -44,7 +44,7 @@
     "lint-staged": "^17.0.7",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }
 }

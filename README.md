@@ -10,7 +10,7 @@ Collaborate in the same workspace with live, multi-user editing.
 
 ### 💻 Integrated terminal
 
-Run commands directly in the browser alongside your editor.
+Run commands directly in the browser alongside your editor!
 
 ### 📁 Project management
 
