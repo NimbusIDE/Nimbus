@@ -16,6 +16,9 @@
     "start:server": "npm run start --workspace server",
     "lint": "bash lint/run.sh"
   },
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
   "devDependencies": {
     "concurrently": "^9.0.0"
   }
