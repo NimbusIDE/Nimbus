@@ -45,7 +45,7 @@ export function useWorkspaceFiles({
               name: cachedFile.name,
               contents: cachedFile.contents,
             },
-            cachedFile.isDirty
+            cachedFile.isDirty,
           );
           return;
         }
@@ -70,28 +70,33 @@ export function useWorkspaceFiles({
             name: data.name,
             contents,
           },
-          isDirty
+          isDirty,
         );
       } catch (error) {
         setFileError(
-          error instanceof Error ? error.message : "Failed to load file contents"
+          error instanceof Error
+            ? error.message
+            : "Failed to load file contents",
         );
       }
     },
-    [files, openVirtualFile]
+    [files, openVirtualFile],
   );
 
-  const updateActiveFileContents = useCallback((path: string, contents: string) => {
-    setFiles((currentFiles) => ({
-      ...currentFiles,
-      [path]: {
-        name: currentFiles[path]?.name ?? path.split("/").pop() ?? path,
-        contents,
-        isDirty: true,
-        isLoaded: true,
-      },
-    }));
-  }, []);
+  const updateActiveFileContents = useCallback(
+    (path: string, contents: string) => {
+      setFiles((currentFiles) => ({
+        ...currentFiles,
+        [path]: {
+          name: currentFiles[path]?.name ?? path.split("/").pop() ?? path,
+          contents,
+          isDirty: true,
+          isLoaded: true,
+        },
+      }));
+    },
+    [],
+  );
 
   const saveActiveWorkspaceFile = useCallback(
     async (path: string, contents: string) => {
@@ -111,10 +116,12 @@ export function useWorkspaceFiles({
 
         setIsDirty(false);
       } catch (error) {
-        setFileError(error instanceof Error ? error.message : "Failed to save file");
+        setFileError(
+          error instanceof Error ? error.message : "Failed to save file",
+        );
       }
     },
-    [setIsDirty]
+    [setIsDirty],
   );
 
   // Clear the active file and reset the state to a new virtual file

@@ -15,62 +15,71 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
   const hasActiveFile = Boolean(activeFileId);
 
   // Select a file. This is used when clicking on an already-open tab.
-  const selectFile = useCallback((node: TreeNode, path: string) => {
-    const nextTab: OpenTab = {
-      id: path,
-      name: node.name,
-      isPreview: true,
-    };
+  const selectFile = useCallback(
+    (node: TreeNode, path: string) => {
+      const nextTab: OpenTab = {
+        id: path,
+        name: node.name,
+        isPreview: true,
+      };
 
-    setOpenFiles((tabs) => {
-      const alreadyOpen = tabs.some((tab) => tab.id === path);
+      setOpenFiles((tabs) => {
+        const alreadyOpen = tabs.some((tab) => tab.id === path);
 
-      if (alreadyOpen) {
-        return tabs;
-      }
+        if (alreadyOpen) {
+          return tabs;
+        }
 
-      const activeTab = tabs.find((tab) => tab.id === activeFileId);
+        const activeTab = tabs.find((tab) => tab.id === activeFileId);
 
-      if (activeTab?.isPreview) {
-        return tabs.map((tab) => (tab.id === activeFileId ? nextTab : tab));
-      }
+        if (activeTab?.isPreview) {
+          return tabs.map((tab) => (tab.id === activeFileId ? nextTab : tab));
+        }
 
-      return [...tabs, nextTab];
-    });
+        return [...tabs, nextTab];
+      });
 
-    setActiveFileId(path);
-    void loadFile(path);
-  }, [activeFileId, loadFile]);
+      setActiveFileId(path);
+      void loadFile(path);
+    },
+    [activeFileId, loadFile],
+  );
 
   // Open a file in a new tab. This is used when double-clicking a file in the tree.
-  const openFile = useCallback((node: TreeNode, path: string) => {
-    const nextTab: OpenTab = {
-      id: path,
-      name: node.name,
-      isPreview: false,
-    };
+  const openFile = useCallback(
+    (node: TreeNode, path: string) => {
+      const nextTab: OpenTab = {
+        id: path,
+        name: node.name,
+        isPreview: false,
+      };
 
-    setOpenFiles((tabs) => {
-      const alreadyOpen = tabs.some((tab) => tab.id === path);
+      setOpenFiles((tabs) => {
+        const alreadyOpen = tabs.some((tab) => tab.id === path);
 
-      if (alreadyOpen) {
-        return tabs.map((tab) =>
-          tab.id === path ? { ...tab, isPreview: false } : tab
-        );
-      }
+        if (alreadyOpen) {
+          return tabs.map((tab) =>
+            tab.id === path ? { ...tab, isPreview: false } : tab,
+          );
+        }
 
-      return [...tabs, nextTab];
-    });
+        return [...tabs, nextTab];
+      });
 
-    setActiveFileId(path);
-    void loadFile(path);
-  }, [loadFile]);
+      setActiveFileId(path);
+      void loadFile(path);
+    },
+    [loadFile],
+  );
 
   // Select a tab. This is used when clicking on an already-open tab.
-  const selectTab = useCallback((id: string) => {
-    setActiveFileId(id);
-    void loadFile(id);
-  }, [loadFile]);
+  const selectTab = useCallback(
+    (id: string) => {
+      setActiveFileId(id);
+      void loadFile(id);
+    },
+    [loadFile],
+  );
 
   // Close a tab. If the closed tab is active, select the next tab in the list.
   const closeTab = useCallback(
@@ -88,8 +97,7 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
           return nextTabs;
         }
 
-        const nextActiveTab =
-          tabs[closingIndex + 1] ?? tabs[closingIndex - 1];
+        const nextActiveTab = tabs[closingIndex + 1] ?? tabs[closingIndex - 1];
 
         if (!nextActiveTab) {
           setActiveFileId("");
@@ -103,7 +111,7 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
         return nextTabs;
       });
     },
-    [activeFileId, clearFile, loadFile]
+    [activeFileId, clearFile, loadFile],
   );
 
   return {

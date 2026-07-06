@@ -36,6 +36,7 @@ jobs:
               - '.nvmrc'
             workflows:
               - '.github/workflows/**'
+
   format:
     runs-on: ubuntu-latest
     steps:
