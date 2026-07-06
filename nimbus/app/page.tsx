@@ -26,6 +26,7 @@ export default function App() {
     saveFile,
     saveFileAs,
     fileInputProps,
+    clearFile,
   } = useFileManager({
     initialCode: "",
     initialLanguage: "unknown",
@@ -51,6 +52,10 @@ export default function App() {
   // to load that file into the editor.
   const tabs = useOpenTabs({
     loadFile: workspaceFiles.loadWorkspaceFile,
+    clearFile: () => {
+      workspaceFiles.clearActiveFile();
+      clearFile();
+    }
   });
 
   // useWorkspaceTree loads the explorer tree from the backend. Once the tree is
@@ -132,6 +137,7 @@ export default function App() {
           }))}
           activeFileId={tabs.activeFileId}
           onSelectFile={tabs.selectTab}
+          onCloseFile={tabs.closeTab}
         />
 
         {/* EditorArea renders Monaco and disables editing until a file is active.
@@ -142,7 +148,11 @@ export default function App() {
           language={language}
           theme={theme}
           hasActiveFile={tabs.hasActiveFile}
-          onChange={(value) => {
+          onChange={(value, event) => {
+            if (event.isFlush) {
+              return;
+            }
+
             if (!tabs.activeFileId) {
               return;
             }
