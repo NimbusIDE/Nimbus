@@ -4,7 +4,7 @@ import type { FileMap, TreeNode } from "@/types/workspace";
 export function treeToMap(
   nodes: TreeNode[],
   parentPath = "",
-  map: FileMap = {}
+  map: FileMap = {},
 ): FileMap {
   for (const node of nodes) {
     const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
