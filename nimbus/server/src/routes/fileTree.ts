@@ -1,5 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import { getWorkspaceTree, readWorkspaceTree, writeWorkspaceTree } from "../services/fileTreeService.js";
+import {
+  getWorkspaceTree,
+  readWorkspaceTree,
+  writeWorkspaceTree,
+} from "../services/fileTreeService.js";
 
 // Define the file tree routes for the Fastify server.
 export async function fileTreeRoutes(app: FastifyInstance) {
@@ -11,13 +15,13 @@ export async function fileTreeRoutes(app: FastifyInstance) {
   // Handle GET request to read a file from the workspace.
   app.get("/workspace/file", async (request, reply) => {
     const query = request.query as { path?: string };
-    
+
     if (!query.path) {
       reply.status(400).send({ error: "Missing 'path' query parameter" });
       return;
     }
 
-    return readWorkspaceTree(query.path);   
+    return readWorkspaceTree(query.path);
   });
 
   // Handle PUT request to save a file in the workspace.

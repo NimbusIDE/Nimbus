@@ -17,7 +17,7 @@ export async function getWorkspaceTree() {
   const nodes = await readDirectoryTree(rootPath);
 
   return {
-    nodes
+    nodes,
   };
 }
 
@@ -29,12 +29,15 @@ export async function readWorkspaceTree(relativePath: string) {
   return {
     path: relativePath,
     name: path.basename(relativePath),
-    content
+    content,
   };
 }
 
 // Write a file to the workspace tree.
-export async function writeWorkspaceTree(relativePath: string, content: string) {
+export async function writeWorkspaceTree(
+  relativePath: string,
+  content: string,
+) {
   const absolutePath = resolveWorkspacePath(relativePath);
   await writeFile(absolutePath, content, "utf-8");
 
@@ -42,7 +45,7 @@ export async function writeWorkspaceTree(relativePath: string, content: string) 
     path: relativePath,
     name: path.basename(relativePath),
     saved: true,
-  }
+  };
 }
 
 // Resolve a relative path within the workspace root to an absolute path.

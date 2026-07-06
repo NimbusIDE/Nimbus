@@ -11,7 +11,9 @@ type UseWorkspaceTreeOptions = {
 // This hook owns only tree-fetch lifecycle state: nodes, loading, and error.
 // It accepts an optional callback so page-level file caches can be seeded after
 // the tree arrives without putting fetch logic back into page.tsx.
-export function useWorkspaceTree({ onTreeLoaded }: UseWorkspaceTreeOptions = {}) {
+export function useWorkspaceTree({
+  onTreeLoaded,
+}: UseWorkspaceTreeOptions = {}) {
   const [workspaceTree, setWorkspaceTree] = useState<TreeNode[]>([]);
   const [isTreeLoading, setIsTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -28,7 +30,9 @@ export function useWorkspaceTree({ onTreeLoaded }: UseWorkspaceTreeOptions = {})
         onTreeLoaded?.(data.nodes);
       } catch (error) {
         setTreeError(
-          error instanceof Error ? error.message : "Failed to load workspace files"
+          error instanceof Error
+            ? error.message
+            : "Failed to load workspace files",
         );
       } finally {
         setIsTreeLoading(false);
