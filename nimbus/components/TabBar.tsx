@@ -10,11 +10,12 @@ type TabBarProps = {
   files: OpenFileTab[];
   activeFileId: string;
   onSelectFile: (id: string) => void;
+  onCloseFile: (id: string) => void;
 };
 
 // This is a simple tab bar component that displays open files and their dirty state.
 // It also allows switching between files by clicking on the tabs.
-export function TabBar({ files, activeFileId, onSelectFile }: TabBarProps) {
+export function TabBar({ files, activeFileId, onSelectFile, onCloseFile }: TabBarProps) {
 
   // Helper to get files with duplicate names
   const duplicatedNames = new Set(
@@ -46,28 +47,55 @@ export function TabBar({ files, activeFileId, onSelectFile }: TabBarProps) {
         const folderPath = getFolderPath(file);
 
         return (
-          <button
+          <div 
             key={file.id}
-            type="button"
-            onClick={() => onSelectFile(file.id)}
+            onAuxClick={(event) => {
+              if (event.button === 1) {
+                event.preventDefault();
+                onCloseFile(file.id);
+              }
+            }}
             className={[
-              "h-10 shrink-0 px-4 text-sm border-r border-neutral-800",
-              "flex items-center gap-1",
-              isActive
-                ? "bg-neutral-800 text-white border-b-2 border-b-blue-500"
-                : "bg-neutral-900 text-neutral-400 hover:text-white",
+              "h-10 shrink-0 text-sm border-r border-neutral-800",
+              "flex items-center",
             ].join(" ")}
           >
-            <span>{file.name}</span>
+            <button
+              key={file.id}
+              type="button"
+              onClick={() => onSelectFile(file.id)}
+              className={[
+                "h-10 shrink-0 px-4 text-sm border-r border-neutral-800",
+                "flex items-center gap-1",
+                isActive
+                  ? "bg-neutral-800 text-white border-b-2 border-b-blue-500"
+                  : "bg-neutral-900 text-neutral-400 hover:text-white",
+              ].join(" ")}
+            >
+              <span>{file.name}</span>
 
-            {showPath && folderPath ? (
-              <span className="text-xs text-neutral-500">
-                {folderPath}
-              </span>
-            ) : null}
+              {showPath && folderPath ? (
+                <span className="text-xs text-neutral-500">
+                  {folderPath}
+                </span>
+              ) : null}
 
-            {file.isDirty ? <span>•</span> : null}
-          </button>
+              {file.isDirty ? <span>•</span> : null}
+            </button>
+            
+            {/* Close button */}
+            <button
+              type="button"
+              aria-label={`Close ${file.name}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onCloseFile(file.id);
+              }}
+              className="ml-2 rounded px-1 text-neutral-500 hover:bg-neutral-700 hover:text-white"
+            >
+              x
+            </button>
+          </div>
         );
       })}
     </div>

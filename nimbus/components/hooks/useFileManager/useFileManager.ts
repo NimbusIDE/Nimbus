@@ -132,6 +132,16 @@ export function useFileManager(opts: FileManagerOptions = {}): FileManagerAPI {
         setIsVirtualFile(true);
     }, []);
 
+    // Clear the current file and reset to a new virtual file state
+    const clearFile = useCallback(() => {
+        fileHandleRef.current = null;
+        setFileName("");
+        setCodeState("");
+        setIsDirty(false);
+        setLanguage("unknown");
+        setIsVirtualFile(true);
+    }, []);
+
     const saveFileAs = useCallback(async () => {
         try {
             if (supportsFileSystemAccess) {
@@ -206,6 +216,7 @@ export function useFileManager(opts: FileManagerOptions = {}): FileManagerAPI {
         openFile,
         openVirtualFile,
         saveFile,
+        clearFile,
         saveFileAs,
         fileInputProps,
     };

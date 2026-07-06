@@ -117,6 +117,12 @@ export function useWorkspaceFiles({
     [setIsDirty]
   );
 
+  // Clear the active file and reset the state to a new virtual file
+  const clearActiveFile = useCallback(() => {
+    setActiveFilePath(undefined);
+    setFileError(null);
+  }, []);
+
   return {
     files,
     activeFilePath,
@@ -125,5 +131,6 @@ export function useWorkspaceFiles({
     loadWorkspaceFile,
     updateActiveFileContents,
     saveActiveWorkspaceFile,
+    clearActiveFile,
   };
 }
