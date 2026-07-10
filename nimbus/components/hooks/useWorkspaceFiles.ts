@@ -114,14 +114,62 @@ export function useWorkspaceFiles({
           },
         }));
 
-        setIsDirty(false);
+        if (path === activeFilePath) {
+          setIsDirty(false);
+        }
       } catch (error) {
         setFileError(
           error instanceof Error ? error.message : "Failed to save file",
         );
       }
     },
-    [setIsDirty],
+    [activeFilePath, setIsDirty],
+  );
+
+  // Saves a file by path, using the cached contents. This is useful for saving
+  // files that are not currently active in the editor, such as when the user
+  // clicks "Save All" or closes a tab with unsaved changes.
+  const saveWorkspaceFileByPath = useCallback(
+    async (path: string) => {
+      const file = files[path];
+
+      if (!file?.isLoaded) {
+        throw new Error("Cannot save a file before it has been loaded");
+      }
+
+      await saveActiveWorkspaceFile(path, file.contents);
+    },
+    [files, saveActiveWorkspaceFile],
+  );
+
+  // Discards unsaved changes to a file by path, resetting its contents to an
+  // empty string and marking it as not dirty. If the discarded file is currently active,
+  // the editor's dirty state is also reset.
+  const discardWorkspaceFileChanges = useCallback(
+    (path: string) => {
+      setFiles((currentFiles) => {
+        const currentFile = currentFiles[path];
+
+        if (!currentFile) {
+          return currentFiles;
+        }
+
+        return {
+          ...currentFiles,
+          [path]: {
+            ...currentFile,
+            contents: "",
+            isDirty: false,
+            isLoaded: false,
+          },
+        };
+      });
+
+      if (path === activeFilePath) {
+        setIsDirty(false);
+      }
+    },
+    [activeFilePath, setIsDirty],
   );
 
   // Clear the active file and reset the state to a new virtual file
@@ -138,6 +186,8 @@ export function useWorkspaceFiles({
     loadWorkspaceFile,
     updateActiveFileContents,
     saveActiveWorkspaceFile,
+    saveWorkspaceFileByPath,
+    discardWorkspaceFileChanges,
     clearActiveFile,
   };
 }
