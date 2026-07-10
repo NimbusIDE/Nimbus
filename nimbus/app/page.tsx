@@ -9,6 +9,7 @@ import { useFileManager } from "@/components/hooks/useFileManager";
 import { useOpenTabs } from "@/components/hooks/useOpenTabs";
 import { useWorkspaceFiles } from "@/components/hooks/useWorkspaceFiles";
 import { useWorkspaceTree } from "@/components/hooks/useWorkspaceTree";
+import { ConfirmCloseTabDialog } from "@/components/ConfirmCloseTabDialog";
 
 export default function App() {
   // useFileManager owns the currently displayed editor buffer and the browser
@@ -32,6 +33,13 @@ export default function App() {
     initialLanguage: "unknown",
     initialName: "",
   });
+
+  // pendingCloseFile is set when the user attempts to close a tab with unsaved changes.
+  // It is cleared when the user saves, discards, or cancels the close action.
+  const [pendingCloseFile, setPendingCloseFile] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Monaco receives the theme name as a string. Keeping it in state makes it
   // easy to add a theme switcher later without changing the editor component.
@@ -82,6 +90,23 @@ export default function App() {
     }
 
     await saveFile();
+  };
+
+  // When a tab is closed, check if the file has unsaved changes. If it does, show
+  // the confirmation dialog. If not, close the tab immediately.
+  const handleRequestCloseTab = (id: string) => {
+    const file = tabs.openFiles.find((tab) => tab.id === id);
+    const isFileDirty = workspaceFiles.files[id]?.isDirty ?? false;
+
+    if (file && isFileDirty) {
+      setPendingCloseFile({
+        id,
+        name: file.name,
+      });
+      return;
+    }
+
+    tabs.closeTab(id);
   };
 
   return (
@@ -137,7 +162,7 @@ export default function App() {
           }))}
           activeFileId={tabs.activeFileId}
           onSelectFile={tabs.selectTab}
-          onCloseFile={tabs.closeTab}
+          onCloseFile={handleRequestCloseTab}
         />
 
         {/* EditorArea renders Monaco and disables editing until a file is active.
@@ -168,6 +193,29 @@ export default function App() {
           }}
         />
       </main>
+
+      {/* Confirm Close Tab Dialog */}
+      {pendingCloseFile ? (
+        <ConfirmCloseTabDialog
+          fileName={pendingCloseFile.name}
+          onCancel={() => {
+            setPendingCloseFile(null);
+          }}
+          onDiscard={async () => {
+            await workspaceFiles.discardWorkspaceFileChanges(
+              pendingCloseFile.id,
+            );
+            tabs.closeTab(pendingCloseFile.id);
+            setPendingCloseFile(null);
+          }}
+          onSave={async () => {
+            await workspaceFiles.saveWorkspaceFileByPath(pendingCloseFile.id);
+
+            tabs.closeTab(pendingCloseFile.id);
+            setPendingCloseFile(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
