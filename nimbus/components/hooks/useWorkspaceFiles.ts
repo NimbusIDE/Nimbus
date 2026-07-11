@@ -1,5 +1,9 @@
 import { useCallback, useState } from "react";
-import { fetchWorkspaceFile, saveWorkspaceFile } from "@/lib/workspaceApi";
+import {
+  fetchWorkspaceFile,
+  saveWorkspaceFile,
+  FileNotFoundError,
+} from "@/lib/workspaceApi";
 import { treeToMap } from "@/lib/treeToMap";
 import type { FileMap, TreeNode } from "@/types/workspace";
 import type { VirtualFile } from "@/components/hooks/useFileManager/fileManager.type";
@@ -20,7 +24,12 @@ export function useWorkspaceFiles({
 }: UseWorkspaceFilesOptions) {
   const [files, setFiles] = useState<FileMap>(() => ({}));
   const [activeFilePath, setActiveFilePath] = useState<string>();
-  const [fileError, setFileError] = useState<string | null>(null);
+
+  type FileError = {
+    title: string;
+    message: string;
+  };
+  const [fileError, setFileError] = useState<FileError | null>(null);
 
   const seedFilesFromTree = useCallback((nodes: TreeNode[]) => {
     setFiles((currentFiles) => ({
@@ -28,6 +37,8 @@ export function useWorkspaceFiles({
       ...treeToMap(nodes),
     }));
   }, []);
+
+  const clearFileError = useCallback(() => setFileError(null), []);
 
   const loadWorkspaceFile = useCallback(
     async (path: string) => {
@@ -47,7 +58,7 @@ export function useWorkspaceFiles({
             },
             cachedFile.isDirty,
           );
-          return;
+          return true;
         }
 
         const data = await fetchWorkspaceFile(path);
@@ -72,12 +83,24 @@ export function useWorkspaceFiles({
           },
           isDirty,
         );
+        return true;
       } catch (error) {
-        setFileError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load file contents",
-        );
+        if (error instanceof FileNotFoundError) {
+          setFileError({
+            title: "File Not Found",
+            message: `The file at path "${path}" could not be found.`,
+          });
+          return false;
+        } else {
+          setFileError({
+            title: "Error Loading File",
+            message:
+              error instanceof Error
+                ? error.message
+                : "An unknown error occurred.",
+          });
+          return false;
+        }
       }
     },
     [files, openVirtualFile],
@@ -118,9 +141,13 @@ export function useWorkspaceFiles({
           setIsDirty(false);
         }
       } catch (error) {
-        setFileError(
-          error instanceof Error ? error.message : "Failed to save file",
-        );
+        setFileError({
+          title: "Error Saving File",
+          message:
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred.",
+        });
       }
     },
     [activeFilePath, setIsDirty],
@@ -189,5 +216,6 @@ export function useWorkspaceFiles({
     saveWorkspaceFileByPath,
     discardWorkspaceFileChanges,
     clearActiveFile,
+    clearFileError,
   };
 }

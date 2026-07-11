@@ -10,6 +10,7 @@ import { useOpenTabs } from "@/components/hooks/useOpenTabs";
 import { useWorkspaceFiles } from "@/components/hooks/useWorkspaceFiles";
 import { useWorkspaceTree } from "@/components/hooks/useWorkspaceTree";
 import { ConfirmCloseTabDialog } from "@/components/ConfirmCloseTabDialog";
+import { Modal } from "@/components/Modal";
 
 export default function App() {
   // useFileManager owns the currently displayed editor buffer and the browser
@@ -73,10 +74,6 @@ export default function App() {
     onTreeLoaded: workspaceFiles.seedFilesFromTree,
   });
 
-  // The sidebar has one error display area, so tree-loading errors and file
-  // load/save errors are combined into a single message value.
-  const activeError = workspaceTree.treeError ?? workspaceFiles.fileError;
-
   // Save only runs when a tab is active. Workspace files are saved through the
   // backend API, while browser-opened files still use useFileManager's saveFile.
   const handleSave = async () => {
@@ -117,9 +114,17 @@ export default function App() {
         nodes={workspaceTree.workspaceTree}
         activePath={workspaceFiles.activeFilePath}
         isLoading={workspaceTree.isTreeLoading}
-        error={activeError}
+        error={workspaceTree.treeError}
         onSelectFile={tabs.selectFile}
         onOpenFile={tabs.openFile}
+      />
+
+      {/* Modal is used for file errors, which can occur when a file is missing, */}
+      <Modal
+        isOpen={workspaceFiles.fileError !== null}
+        title={workspaceFiles.fileError?.title ?? ""}
+        message={workspaceFiles.fileError?.message ?? ""}
+        onClose={workspaceFiles.clearFileError}
       />
 
       <main className="flex-1 min-w-0 flex flex-col">
