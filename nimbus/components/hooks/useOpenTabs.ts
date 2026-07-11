@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import type { OpenTab, TreeNode } from "@/types/workspace";
 
 type UseOpenTabsOptions = {
-  loadFile: (path: string) => void | Promise<void>;
+  loadFile: (path: string) => Promise<boolean>;
   clearFile: () => void;
 };
 
@@ -15,8 +15,14 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
   const hasActiveFile = Boolean(activeFileId);
 
   // Select a file. This is used when clicking on an already-open tab.
+  //
+  // The tab/active-file switch happens optimistically, but if loadFile fails
+  // (e.g. the file was deleted), we roll back to whatever was open before so
+  // a failed load never leaves a broken tab active or clears editor content.
   const selectFile = useCallback(
-    (node: TreeNode, path: string) => {
+    async (node: TreeNode, path: string) => {
+      const previousTabs = openFiles;
+      const previousActiveFileId = activeFileId;
       const nextTab: OpenTab = {
         id: path,
         name: node.name,
@@ -40,14 +46,22 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
       });
 
       setActiveFileId(path);
-      void loadFile(path);
+
+      const success = await loadFile(path);
+      if (!success) {
+        setOpenFiles(previousTabs);
+        setActiveFileId(previousActiveFileId);
+      }
     },
-    [activeFileId, loadFile],
+    [activeFileId, openFiles, loadFile],
   );
 
-  // Open a file in a new tab. This is used when double-clicking a file in the tree.
+  // Open a file in a new tab. This is used when double-clicking a file in the
+  // tree. Same rollback behavior as selectFile if loadFile fails.
   const openFile = useCallback(
-    (node: TreeNode, path: string) => {
+    async (node: TreeNode, path: string) => {
+      const previousTabs = openFiles;
+      const previousActiveFileId = activeFileId;
       const nextTab: OpenTab = {
         id: path,
         name: node.name,
@@ -67,18 +81,29 @@ export function useOpenTabs({ loadFile, clearFile }: UseOpenTabsOptions) {
       });
 
       setActiveFileId(path);
-      void loadFile(path);
+
+      const success = await loadFile(path);
+      if (!success) {
+        setOpenFiles(previousTabs);
+        setActiveFileId(previousActiveFileId);
+      }
     },
-    [loadFile],
+    [activeFileId, openFiles, loadFile],
   );
 
-  // Select a tab. This is used when clicking on an already-open tab.
+  // Select a tab. This is used when clicking on an already-open tab. Only the
+  // active id needs to roll back here since the tab list itself doesn't change.
   const selectTab = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      const previousActiveFileId = activeFileId;
       setActiveFileId(id);
-      void loadFile(id);
+
+      const success = await loadFile(id);
+      if (!success) {
+        setActiveFileId(previousActiveFileId);
+      }
     },
-    [loadFile],
+    [activeFileId, loadFile],
   );
 
   // Close a tab. If the closed tab is active, select the next tab in the list.
