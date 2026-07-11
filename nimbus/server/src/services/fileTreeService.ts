@@ -4,6 +4,7 @@ import { config } from "../config/env.js";
 
 const ignoredNames = new Set(["node_modules", ".git", ".next", "dist"]);
 
+// TODO: Add comment
 export type TreeNode = {
   name: string;
   type: "file" | "folder";
@@ -24,13 +25,37 @@ export async function getWorkspaceTree() {
 // Read a file from the workspace tree.
 export async function readWorkspaceTree(relativePath: string) {
   const absolutePath = resolveWorkspacePath(relativePath);
-  const content = await readFile(absolutePath, "utf-8");
+  try {
+    const content = await readFile(absolutePath, "utf-8");
 
-  return {
-    path: relativePath,
-    name: path.basename(relativePath),
-    content,
-  };
+    return {
+      path: relativePath,
+      name: path.basename(relativePath),
+      content,
+    };
+  } catch (error) {
+    // If the error is a file not found error, throw a custom FileNotFoundError.
+    if (error instanceof Error && error.message.includes("ENOENT")) {
+      throw new FileNotFoundError(`File not found: ${relativePath}`);
+    }
+    throw error;
+  }
+}
+
+// Custom error class for file not found errors.
+export class FileNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FileNotFoundError";
+  }
+}
+
+// Custom error class for invalid path errors.
+export class InvalidPathError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidPathError";
+  }
 }
 
 // Write a file to the workspace tree.
@@ -54,7 +79,7 @@ function resolveWorkspacePath(relativePath: string) {
   const target = path.resolve(root, relativePath);
 
   if (!target.startsWith(root)) {
-    throw new Error("Invalid workspace path");
+    throw new InvalidPathError(`Invalid path: ${relativePath}`);
   }
 
   return target;
@@ -72,20 +97,27 @@ async function readDirectoryTree(directoryPath: string): Promise<TreeNode[]> {
 
     const entryPath = path.join(directoryPath, entry.name);
 
-    if (entry.isDirectory()) {
-      nodes.push({
-        name: entry.name,
-        type: "folder",
-        children: await readDirectoryTree(entryPath),
-      });
-    }
+    try {
+      if (entry.isDirectory()) {
+        nodes.push({
+          name: entry.name,
+          type: "folder",
+          children: await readDirectoryTree(entryPath),
+        });
+      }
 
-    if (entry.isFile()) {
-      nodes.push({
-        name: entry.name,
-        type: "file",
-        content: "",
-      });
+      if (entry.isFile()) {
+        nodes.push({
+          name: entry.name,
+          type: "file",
+          content: "",
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("ENOENT")) {
+        throw new FileNotFoundError(`File not found: ${entryPath}`);
+      }
+      throw error;
     }
   }
 
