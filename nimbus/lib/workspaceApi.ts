@@ -6,6 +6,16 @@ import type {
 // Shared helpers for workspace API requests.
 const WORKSPACE_API_BASE_URL = "http://127.0.0.1:4000";
 
+// Thrown when the backend reports a 404 for a workspace file. Callers use this
+// to distinguish "the file is gone" from other failures (network issues,
+// server errors) so the UI can show an accurate message.
+export class FileNotFoundError extends Error {
+  constructor(path: string) {
+    super(`File not found: ${path}`);
+    this.name = "FileNotFoundError";
+  }
+}
+
 export async function fetchWorkspaceTree(): Promise<FileTreeResponse> {
   const response = await fetch(`${WORKSPACE_API_BASE_URL}/workspace/tree`);
 
@@ -24,6 +34,9 @@ export async function fetchWorkspaceFile(
   );
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new FileNotFoundError(path);
+    }
     throw new Error("Failed to load file contents");
   }
 
