@@ -15,39 +15,34 @@ That's it. The script is safe to run multiple times — it checks for existing e
 
 ### Git aliases
 
-| Alias            | Command                        | Notes                                                        |
-| ---------------- | ------------------------------ | ------------------------------------------------------------ |
-| `git s`          | `git status`                   |                                                              |
-| `git b`          | `git branch`                   |                                                              |
-| `git lo`         | `git log --oneline`            |                                                              |
-| `git graph`      | pretty branch graph            |                                                              |
-| `git last`       | last commit with file stats    |                                                              |
-| `git cm`         | `git commit`                   |                                                              |
-| `git ane`        | `git commit --amend --no-edit` |                                                              |
-| `git amend`      | `git commit --amend`           |                                                              |
-| `git addp`       | `git add -p`                   | stage hunks interactively                                    |
-| `git unstage`    | `git restore --staged`         |                                                              |
-| `git sw`         | `git switch`                   | with tab completion                                          |
-| `git ch`         | `git checkout`                 | with tab completion                                          |
-| <<<<<<< HEAD     |
-| `git nwb <name>` | create branch with exact name  | copy branch name from Linear, e.g. `git nwb nim-42-fix-auth` |
-| =======          |
-| `git nwb <desc>` | create NIM-prefixed branch     | e.g. `git nwb 42-fix-auth` → `nim-42-fix-auth`               |
-
-> > > > > > > main
-> > > > > > > | `git chg <partial>` | switch by partial branch name | e.g. `git chg 42` finds `nim-42-fix-auth` |
-> > > > > > > | `git ps` | `git push` | |
-> > > > > > > | `git psf` | `git push --force-with-lease` | |
-> > > > > > > | `git pl` | `git pull` | |
-> > > > > > > | `git f` | `git fetch` | |
-> > > > > > > | `git st` | `git stash` | |
-> > > > > > > | `git stp` | `git stash pop` | |
-> > > > > > > | `git r` | `git rebase` | |
-> > > > > > > | `git continue` | `git rebase --continue` | |
-> > > > > > > | `git fixup-i` | interactive fixup with fzf | pick a commit to fixup into |
-> > > > > > > | `git squash-i` | interactive squash with fzf | pick a commit to squash from |
-> > > > > > > | `git nimlog` | NIM commits from last 2 weeks | |
-> > > > > > > | `git cleanup` | delete merged local branches | |
+| Alias               | Command                        | Notes                                          |
+| ------------------- | ------------------------------ | ---------------------------------------------- |
+| `git s`             | `git status`                   |                                                |
+| `git b`             | `git branch`                   |                                                |
+| `git lo`            | `git log --oneline`            |                                                |
+| `git graph`         | pretty branch graph            |                                                |
+| `git last`          | last commit with file stats    |                                                |
+| `git cm`            | `git commit`                   |                                                |
+| `git ane`           | `git commit --amend --no-edit` |                                                |
+| `git amend`         | `git commit --amend`           |                                                |
+| `git addp`          | `git add -p`                   | stage hunks interactively                      |
+| `git unstage`       | `git restore --staged`         |                                                |
+| `git sw`            | `git switch`                   | with tab completion                            |
+| `git ch`            | `git checkout`                 | with tab completion                            |
+| `git nwb <desc>`    | create NIM-prefixed branch     | e.g. `git nwb 42-fix-auth` → `nim-42-fix-auth` |
+| `git chg <partial>` | switch by partial branch name  | e.g. `git chg 42` finds `nim-42-fix-auth`      |
+| `git ps`            | `git push`                     |                                                |
+| `git psf`           | `git push --force-with-lease`  |                                                |
+| `git pl`            | `git pull`                     |                                                |
+| `git f`             | `git fetch`                    |                                                |
+| `git st`            | `git stash`                    |                                                |
+| `git stp`           | `git stash pop`                |                                                |
+| `git r`             | `git rebase`                   |                                                |
+| `git continue`      | `git rebase --continue`        |                                                |
+| `git fixup-i`       | interactive fixup with fzf     | pick a commit to fixup into                    |
+| `git squash-i`      | interactive squash with fzf    | pick a commit to squash from                   |
+| `git nimlog`        | NIM commits from last 2 weeks  |                                                |
+| `git cleanup`       | delete merged local branches   |                                                |
 
 ### Bash functions
 
