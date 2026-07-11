@@ -3,6 +3,8 @@ import {
   getWorkspaceTree,
   readWorkspaceTree,
   writeWorkspaceTree,
+  FileNotFoundError,
+  InvalidPathError,
 } from "../services/fileTreeService.js";
 
 // Define the file tree routes for the Fastify server.
@@ -21,7 +23,22 @@ export async function fileTreeRoutes(app: FastifyInstance) {
       return;
     }
 
-    return readWorkspaceTree(query.path);
+    // Attempt to read the file and handle potential errors.
+    try {
+      return await readWorkspaceTree(query.path);
+    } catch (error) {
+      if (error instanceof FileNotFoundError) {
+        reply.status(404).send({ error: error.message });
+        return;
+      }
+      if (error instanceof InvalidPathError) {
+        reply.status(400).send({ error: error.message });
+        return;
+      }
+      request.log.error(error);
+      reply.status(500).send({ error: "Internal server error" });
+      return;
+    }
   });
 
   // Handle PUT request to save a file in the workspace.
