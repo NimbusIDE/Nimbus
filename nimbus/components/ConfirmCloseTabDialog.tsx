@@ -1,3 +1,8 @@
+// This component is used to confirm if the user wants to save changes before closing a tab.
+// It displays a dialog with options to save, discard, or cancel the action.
+
+// This is a prop type definition for the ConfirmCloseTabDialog component.
+// It specifies the expected props and their types for this close tab dialog component.
 type ConfirmCloseTabDialogProps = {
   fileName: string;
   onSave: () => void;
@@ -5,12 +10,17 @@ type ConfirmCloseTabDialogProps = {
   onCancel: () => void;
 };
 
+// This is the ConfirmCloseTabDialog component definition.
+// It takes in props defined by ConfirmCloseTabDialogProps and renders a modal dialog.
 export function ConfirmCloseTabDialog({
   fileName,
   onSave,
   onDiscard,
   onCancel,
 }: ConfirmCloseTabDialogProps) {
+  // The component returns a JSX structure that represents the modal dialog.
+  // The dialog is centered on the screen and has a semi-transparent background.
+  // It contains a title, a message, and three buttons for user actions.
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div
@@ -27,6 +37,7 @@ export function ConfirmCloseTabDialog({
           Your changes will be lost if you do not save them.
         </p>
 
+        {/*Save, Cancel, and Don't Save buttons section inside the dialog */}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
