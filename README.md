@@ -1,6 +1,6 @@
 # 🌩️ Nimbus Cloud IDE
 
-Nimbus Cloud IDE is a browser-based development environment that brings a full coding workflow to the cloud. Write, run, and collaborate on projects from any device without local setup.
+Nimbus Cloud IDE is a browser-based development environment that brings a full coding workflow to the cloud. Write, run, and collaborate on projects from any device without local setup!
 
 ## 🚀 Features
 
