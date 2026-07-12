@@ -10,7 +10,6 @@ type EditorAreaProps = {
 };
 
 // Monaco editor presentation plus the "no active file" overlay.
-//
 // The parent still owns code state and save behavior. This component only
 // controls the visual editor shell and read-only state.
 export function EditorArea({
