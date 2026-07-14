@@ -1,5 +1,7 @@
 import { FileTree } from "@/components/FileTree";
 import type { TreeNode } from "@/types/workspace";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { useState } from "react";
 
 type ExplorerPanelProps = {
   nodes: TreeNode[];
@@ -22,8 +24,76 @@ export function ExplorerPanel({
   onSelectFile,
   onOpenFile,
 }: ExplorerPanelProps) {
+  const [contextMenu, setContextMenu] = useState<{
+    items: ContextMenuItem[];
+    position: { x: number; y: number };
+  } | null>(null);
+
+  function handleFileContextMenu(
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) {
+    setContextMenu({
+      position,
+      items: [
+        { label: "Open", onClick: () => console.log("Open", path) },
+        { label: "Rename", onClick: () => console.log("Rename", path) },
+        { label: "Duplicate", onClick: () => console.log("Duplicate", path) },
+        {
+          label: "Delete",
+          onClick: () => console.log("Delete", path),
+          destructive: true,
+        },
+      ],
+    });
+  }
+
+  function handleFolderContextMenu(
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) {
+    setContextMenu({
+      position,
+      items: [
+        { label: "New File", onClick: () => console.log("New File", path) },
+        {
+          label: "New Folder",
+          onClick: () => console.log("New Folder", path),
+        },
+        { label: "Rename", onClick: () => console.log("Rename", path) },
+        {
+          label: "Delete",
+          onClick: () => console.log("Delete", path),
+          destructive: true,
+        },
+      ],
+    });
+  }
+
+  function handleEmptyContextMenu(event: React.MouseEvent<HTMLElement>) {
+    event.preventDefault();
+    setContextMenu({
+      position: { x: event.clientX, y: event.clientY },
+      items: [
+        {
+          label: "New File",
+          onClick: () => console.log("New File at root"),
+        },
+        {
+          label: "New Folder",
+          onClick: () => console.log("New Folder at root"),
+        },
+      ],
+    });
+  }
+
   return (
-    <aside className="w-[15vw] shrink-0 bg-neutral-900 text-neutral-100">
+    <aside
+      className="w-[15vw] shrink-0 bg-neutral-900 text-neutral-100"
+      onContextMenu={handleEmptyContextMenu}
+    >
       <header className="h-12 px-4 flex items-center border-b border-neutral-800">
         Explorer
       </header>
@@ -38,8 +108,18 @@ export function ExplorerPanel({
           activePath={activePath}
           onSelectFile={onSelectFile}
           onOpenFile={onOpenFile}
+          onFileContextMenu={handleFileContextMenu}
+          onFolderContextMenu={handleFolderContextMenu}
         />
       )}
+
+      {contextMenu ? (
+        <ContextMenu
+          position={contextMenu.position}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
+        />
+      ) : null}
     </aside>
   );
 }
