@@ -9,6 +9,16 @@ type FileTreeProps = {
   activePath?: string;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile?: (node: TreeNode, path: string) => void;
+  onFileContextMenu?: (
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) => void;
+  onFolderContextMenu?: (
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) => void;
 };
 
 type TreeNodeRowProps = {
@@ -18,6 +28,16 @@ type TreeNodeRowProps = {
   activePath?: string;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile?: (node: TreeNode, path: string) => void;
+  onFileContextMenu?: (
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) => void;
+  onFolderContextMenu?: (
+    node: TreeNode,
+    path: string,
+    position: { x: number; y: number },
+  ) => void;
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
 };
@@ -56,6 +76,8 @@ function TreeNodeRow({
   activePath,
   onSelectFile,
   onOpenFile,
+  onFileContextMenu,
+  onFolderContextMenu,
   expandedFolders,
   onToggleFolder,
 }: TreeNodeRowProps) {
@@ -107,6 +129,18 @@ function TreeNodeRow({
 
           onOpenFile?.(node, path);
         }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const position = { x: event.clientX, y: event.clientY };
+
+          if (isFolder) {
+            onFolderContextMenu?.(node, path, position);
+          } else {
+            onFileContextMenu?.(node, path, position);
+          }
+        }}
         aria-expanded={isFolder ? isExpanded : undefined}
       >
         <span className="mr-2 flex h-4 w-4 items-center justify-center">
@@ -131,6 +165,8 @@ function TreeNodeRow({
               activePath={activePath}
               onSelectFile={onSelectFile}
               onOpenFile={onOpenFile}
+              onFileContextMenu={onFileContextMenu}
+              onFolderContextMenu={onFolderContextMenu}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
             />
@@ -162,6 +198,8 @@ export function FileTree({
   activePath,
   onSelectFile,
   onOpenFile,
+  onFileContextMenu,
+  onFolderContextMenu,
 }: FileTreeProps) {
   // Track expanded folders locally because folder open/closed UI belongs to the tree.
   const [expandedFolders, setExpandedFolders] = useState(
@@ -188,11 +226,7 @@ export function FileTree({
       return next;
     });
   };
-
   return (
-    // File explorer section:
-    // --------------------------------------------------------------------------------
-    // Renders the project tree and delegates file selection/opening behavior to page.tsx.
     <nav aria-label="Project files">
       <ul className="space-y-0.5">
         {nodes.map((node) => (
@@ -204,6 +238,8 @@ export function FileTree({
             activePath={activePath}
             onSelectFile={onSelectFile}
             onOpenFile={onOpenFile}
+            onFileContextMenu={onFileContextMenu}
+            onFolderContextMenu={onFolderContextMenu}
             expandedFolders={expandedFolders}
             onToggleFolder={handleToggleFolder}
           />
