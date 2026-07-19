@@ -1,5 +1,5 @@
 import { FileTree } from "@/components/FileTree";
-import type { TreeNode } from "@/types/workspace";
+import type { ContextMenuHandler, Position, TreeNode } from "@/types/workspace";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useState } from "react";
 
@@ -24,16 +24,18 @@ export function ExplorerPanel({
   onSelectFile,
   onOpenFile,
 }: ExplorerPanelProps) {
+  // Right-click menu state. Any of the three handlers below can set this;
+  // rendering a single <ContextMenu> instance for whichever target was
+  // clicked keeps only one menu open at a time.
   const [contextMenu, setContextMenu] = useState<{
     items: ContextMenuItem[];
-    position: { x: number; y: number };
+    position: Position;
   } | null>(null);
 
-  function handleFileContextMenu(
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) {
+  // Item list for right-clicking a file row. Actions are placeholder
+  // console.log calls for now — wiring them to real file operations is a
+  // separate issue.
+  const handleFileContextMenu: ContextMenuHandler = (node, path, position) => {
     setContextMenu({
       position,
       items: [
@@ -47,13 +49,14 @@ export function ExplorerPanel({
         },
       ],
     });
-  }
+  };
 
-  function handleFolderContextMenu(
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) {
+  // Item list for right-clicking a folder row.
+  const handleFolderContextMenu: ContextMenuHandler = (
+    node,
+    path,
+    position,
+  ) => {
     setContextMenu({
       position,
       items: [
@@ -70,8 +73,11 @@ export function ExplorerPanel({
         },
       ],
     });
-  }
+  };
 
+  // Item list for right-clicking empty sidebar space (not a file/folder
+  // row). Rows call stopPropagation() on their own onContextMenu, so this
+  // only fires when the click doesn't land on the tree.
   function handleEmptyContextMenu(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
     setContextMenu({
