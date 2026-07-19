@@ -43,3 +43,19 @@ export type WorkspaceFileResponse = {
   name: string;
   content: string;
 };
+
+// Viewport coordinates for a floating UI element (currently just the
+// right-click context menu).
+export type Position = {
+  x: number;
+  y: number;
+};
+
+// Right-click handler for a file/folder tree row. Shared by FileTree (which
+// calls it) and ExplorerPanel (which implements it) so the signature only
+// needs to change in one place.
+export type ContextMenuHandler = (
+  node: TreeNode,
+  path: string,
+  position: Position,
+) => void;

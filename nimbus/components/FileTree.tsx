@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { File, FileCode, FileJson, Folder } from "lucide-react";
-import type { TreeNode } from "@/types/workspace";
+import type { ContextMenuHandler, TreeNode } from "@/types/workspace";
 
 export type { TreeNode } from "@/types/workspace";
 
@@ -9,16 +9,10 @@ type FileTreeProps = {
   activePath?: string;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile?: (node: TreeNode, path: string) => void;
-  onFileContextMenu?: (
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) => void;
-  onFolderContextMenu?: (
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) => void;
+  // Right-click on a row. The parent (ExplorerPanel) decides what menu
+  // items to show based on whether the row is a file or a folder.
+  onFileContextMenu?: ContextMenuHandler;
+  onFolderContextMenu?: ContextMenuHandler;
 };
 
 type TreeNodeRowProps = {
@@ -28,16 +22,8 @@ type TreeNodeRowProps = {
   activePath?: string;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile?: (node: TreeNode, path: string) => void;
-  onFileContextMenu?: (
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) => void;
-  onFolderContextMenu?: (
-    node: TreeNode,
-    path: string,
-    position: { x: number; y: number },
-  ) => void;
+  onFileContextMenu?: ContextMenuHandler;
+  onFolderContextMenu?: ContextMenuHandler;
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
 };
@@ -131,6 +117,8 @@ function TreeNodeRow({
         }}
         onContextMenu={(event) => {
           event.preventDefault();
+          // stopPropagation so ExplorerPanel's empty-space handler doesn't
+          // also fire for a click that landed on a row.
           event.stopPropagation();
 
           const position = { x: event.clientX, y: event.clientY };
