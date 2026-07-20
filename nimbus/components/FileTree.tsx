@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { File, FileCode, FileJson, Folder } from "lucide-react";
 import type { ContextMenuHandler, TreeNode } from "@/types/workspace";
 
 export type { TreeNode } from "@/types/workspace";
+
+// The workspace root is represented by an empty target path. Dropping onto the
+// tree background uses this value to mean "move this item out to the root".
+const ROOT_DROP_TARGET_PATH = "";
 
 type FileTreeProps = {
   nodes: TreeNode[];
@@ -13,6 +17,7 @@ type FileTreeProps = {
   // items to show based on whether the row is a file or a folder.
   onFileContextMenu?: ContextMenuHandler;
   onFolderContextMenu?: ContextMenuHandler;
+  onMoveNode?: (sourcePath: string, targetFolderPath: string) => void;
 };
 
 type TreeNodeRowProps = {
@@ -31,6 +36,12 @@ type TreeNodeRowProps = {
   // rows share one source of truth instead of tracking their own.
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
+  draggingPath: string | null;
+  dropTargetPath: string | null;
+  onDragStartNode: (path: string) => void;
+  onDragEndNode: () => void;
+  onDragOverFolder: (path: string) => void;
+  onDropOnFolder: (targetFolderPath: string) => void;
 };
 
 function getFileIcon(name: string) {
@@ -71,10 +82,20 @@ function TreeNodeRow({
   onFolderContextMenu,
   expandedFolders,
   onToggleFolder,
+  draggingPath,
+  dropTargetPath,
+  onDragStartNode,
+  onDragEndNode,
+  onDragOverFolder,
+  onDropOnFolder,
 }: TreeNodeRowProps) {
   const isFolder = node.type === "folder";
   const isActive = path === activePath;
   const isExpanded = expandedFolders.has(path);
+  // These booleans only control drag/drop visuals for this row: the item being
+  // dragged fades out, and a folder being hovered as a drop target turns blue.
+  const isDragging = draggingPath === path;
+  const isDropTarget = isFolder && dropTargetPath === path;
   const label = node.name;
 
   // Used to separate single click from double click:
@@ -88,12 +109,52 @@ function TreeNodeRow({
     <li>
       <button
         type="button"
+        draggable
         className={`flex w-full items-center rounded py-1 pr-2 text-left text-sm transition-colors ${
-          isActive
-            ? "bg-sky-900/50 text-sky-100"
-            : "text-neutral-300 hover:bg-neutral-800/70 hover:text-neutral-100"
-        } ${isFolder ? "font-semibold" : "font-normal"}`}
+          isDropTarget
+            ? "bg-blue-900/70 text-blue-100"
+            : isActive
+              ? "bg-sky-900/50 text-sky-100"
+              : "text-neutral-300 hover:bg-neutral-800/70 hover:text-neutral-100"
+        } ${isDragging ? "opacity-50" : ""} ${
+          isFolder ? "font-semibold" : "font-normal"
+        }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        onDragStart={(event) => {
+          // Start dragging this visible tree row. The browser dataTransfer value
+          // carries the path for native drag behavior, while React state drives
+          // the UI highlight/fade state inside FileTree.
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", path);
+          onDragStartNode(path);
+        }}
+        onDragEnd={onDragEndNode}
+        onDragOver={(event) => {
+          // Files can be dragged, but only folders accept nested drops.
+          if (!isFolder) {
+            return;
+          }
+
+          // A drop target must call preventDefault during drag-over, otherwise
+          // the browser refuses to fire a drop event on that element.
+          event.preventDefault();
+          // Folder rows are inside the root drop area. Stop propagation so a
+          // folder hover does not get overwritten by the root hover handler.
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = "move";
+          onDragOverFolder(path);
+        }}
+        onDrop={(event) => {
+          // Dropping onto a folder reports "move source into this folder" to the
+          // parent. FileTree does not perform the filesystem move itself.
+          if (!isFolder) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          onDropOnFolder(path);
+        }}
         onClick={() => {
           // Folders only expand/collapse. They do not open editor tabs.
           if (isFolder) {
@@ -162,6 +223,12 @@ function TreeNodeRow({
               onFolderContextMenu={onFolderContextMenu}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
+              draggingPath={draggingPath}
+              dropTargetPath={dropTargetPath}
+              onDragStartNode={onDragStartNode}
+              onDragEndNode={onDragEndNode}
+              onDragOverFolder={onDragOverFolder}
+              onDropOnFolder={onDropOnFolder}
             />
           ))}
         </ul>
@@ -193,11 +260,17 @@ export function FileTree({
   onOpenFile,
   onFileContextMenu,
   onFolderContextMenu,
+  onMoveNode,
 }: FileTreeProps) {
   // Track expanded folders locally because folder open/closed UI belongs to the tree.
   const [expandedFolders, setExpandedFolders] = useState(
     () => new Set(getInitialExpandedFolders(nodes)),
   );
+  // Drag state is owned by FileTree because the dragged item and drop target can
+  // be different TreeNodeRow components, including deeply nested rows.
+  const [draggingPath, setDraggingPath] = useState<string | null>(null);
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const isRootDropTarget = dropTargetPath === ROOT_DROP_TARGET_PATH;
 
   // The workspace tree arrives asynchronously from the backend. When the nodes
   // change, expand folders again so the loaded project is visible immediately.
@@ -219,8 +292,79 @@ export function FileTree({
       return next;
     });
   };
+
+  const handleDragStartNode = (path: string) => {
+    // Remember which path is currently being dragged so targets can decide
+    // whether to highlight and what source path to report on drop.
+    setDraggingPath(path);
+  };
+
+  const handleDragEndNode = () => {
+    // Drag end fires when the user drops, cancels, or releases outside a target.
+    // Clearing both values removes all temporary drag styling.
+    setDraggingPath(null);
+    setDropTargetPath(null);
+  };
+
+  const handleDragOverFolder = (path: string) => {
+    // Highlight the folder currently under the pointer. Dropping an item onto
+    // itself is ignored because it would be a no-op.
+    if (!draggingPath || draggingPath === path) {
+      return;
+    }
+
+    setDropTargetPath(path);
+  };
+
+  const handleDropOnFolder = (targetFolderPath: string) => {
+    // A valid folder drop sends the source path and destination folder path up
+    // through onMoveNode. Backend/file-tree refresh work can plug in there.
+    if (!draggingPath || draggingPath === targetFolderPath) {
+      return;
+    }
+
+    onMoveNode?.(draggingPath, targetFolderPath);
+    setDraggingPath(null);
+    setDropTargetPath(null);
+  };
+
+  const handleDragOverRoot = (event: DragEvent<HTMLElement>) => {
+    // The root target is the empty space/background of the tree. It lets users
+    // move files or folders out of a folder and back to the workspace root.
+    if (!draggingPath) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetPath(ROOT_DROP_TARGET_PATH);
+  };
+
+  const handleDropOnRoot = (event: DragEvent<HTMLElement>) => {
+    // Dropping on root reports an empty destination path. Later backend code can
+    // interpret that as the workspace root directory.
+    if (!draggingPath) {
+      return;
+    }
+
+    event.preventDefault();
+    onMoveNode?.(draggingPath, ROOT_DROP_TARGET_PATH);
+    setDraggingPath(null);
+    setDropTargetPath(null);
+  };
+
   return (
-    <nav aria-label="Project files">
+    // File explorer section:
+    // --------------------------------------------------------------------------------
+    // Renders the project tree and delegates file selection/opening behavior to page.tsx.
+    <nav
+      aria-label="Project files"
+      onDragOver={handleDragOverRoot}
+      onDrop={handleDropOnRoot}
+      className={`min-h-full rounded transition-colors ${
+        isRootDropTarget ? "bg-blue-950/40 ring-1 ring-blue-700/70" : ""
+      }`}
+    >
       <ul className="space-y-0.5">
         {nodes.map((node) => (
           <TreeNodeRow
@@ -235,6 +379,12 @@ export function FileTree({
             onFolderContextMenu={onFolderContextMenu}
             expandedFolders={expandedFolders}
             onToggleFolder={handleToggleFolder}
+            draggingPath={draggingPath}
+            dropTargetPath={dropTargetPath}
+            onDragStartNode={handleDragStartNode}
+            onDragEndNode={handleDragEndNode}
+            onDragOverFolder={handleDragOverFolder}
+            onDropOnFolder={handleDropOnFolder}
           />
         ))}
       </ul>
