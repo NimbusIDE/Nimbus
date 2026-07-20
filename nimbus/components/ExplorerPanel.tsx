@@ -10,6 +10,7 @@ type ExplorerPanelProps = {
   error: string | null;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile: (node: TreeNode, path: string) => void;
+  onMoveNode?: (sourcePath: string, targetFolderPath: string) => void;
 };
 
 // Sidebar presentation for the workspace explorer.
@@ -23,6 +24,7 @@ export function ExplorerPanel({
   error,
   onSelectFile,
   onOpenFile,
+  onMoveNode,
 }: ExplorerPanelProps) {
   // Right-click menu state. Any of the three handlers below can set this;
   // rendering a single <ContextMenu> instance for whichever target was
@@ -116,6 +118,7 @@ export function ExplorerPanel({
           onOpenFile={onOpenFile}
           onFileContextMenu={handleFileContextMenu}
           onFolderContextMenu={handleFolderContextMenu}
+          onMoveNode={onMoveNode}
         />
       )}
 

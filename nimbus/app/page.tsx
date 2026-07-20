@@ -117,6 +117,9 @@ export default function App() {
         error={workspaceTree.treeError}
         onSelectFile={tabs.selectFile}
         onOpenFile={tabs.openFile}
+        onMoveNode={(sourcePath, targetFolderPath) => {
+          console.log("move", sourcePath, "to", targetFolderPath);
+        }}
       />
 
       {/* Modal is used for file errors, which can occur when a file is missing, */}
