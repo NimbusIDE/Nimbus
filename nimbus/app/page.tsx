@@ -11,6 +11,7 @@ import { useWorkspaceFiles } from "@/components/hooks/useWorkspaceFiles";
 import { useWorkspaceTree } from "@/components/hooks/useWorkspaceTree";
 import { ConfirmCloseTabDialog } from "@/components/ConfirmCloseTabDialog";
 import { Modal } from "@/components/Modal";
+import { moveWorkspaceNode } from "@/lib/workspaceApi";
 
 export default function App() {
   // useFileManager owns the currently displayed editor buffer and the browser
@@ -117,8 +118,17 @@ export default function App() {
         error={workspaceTree.treeError}
         onSelectFile={tabs.selectFile}
         onOpenFile={tabs.openFile}
-        onMoveNode={(sourcePath, targetFolderPath) => {
-          console.log("move", sourcePath, "to", targetFolderPath);
+        onMoveNode={async (sourcePath, targetFolderPath) => {
+          try {
+            await moveWorkspaceNode(sourcePath, targetFolderPath);
+            workspaceTree.reloadWorkspaceTree();
+          } catch (error) {
+            workspaceTree.setTreeError(
+              error instanceof Error
+                ? error.message
+                : "Failed to move file or folder",
+            );
+          }
         }}
       />
 
