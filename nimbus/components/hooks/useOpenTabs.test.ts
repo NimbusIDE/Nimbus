@@ -78,6 +78,39 @@ describe("useOpenTabs", () => {
     ]);
   });
 
+  it("removes the tab when a double click races a pending single-click selection for a missing file", async () => {
+    // A real double click always fires a native click and a dblclick, so a
+    // slow-enough double click can let the single-click preview timer call
+    // selectFile right before the dblclick handler calls openFile for the
+    // same path. Both loads fail (the file doesn't exist), and the tab
+    // should end up removed no matter which failure resolves last.
+    const loadFileMock = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(false), 5)),
+      );
+    const { result } = renderHook(() =>
+      useOpenTabs({ loadFile: loadFileMock, clearFile: vi.fn() }),
+    );
+
+    let selectFilePromise!: Promise<void>;
+    await act(async () => {
+      selectFilePromise = result.current.selectFile(fileNode, "/temp.txt");
+    });
+
+    let openFilePromise!: Promise<void>;
+    await act(async () => {
+      openFilePromise = result.current.openFile(fileNode, "/temp.txt");
+    });
+
+    await act(async () => {
+      await Promise.all([selectFilePromise, openFilePromise]);
+    });
+
+    expect(result.current.openFiles).toEqual([]);
+    expect(result.current.activeFileId).toBe("");
+  });
+
   it("rolls back the active tab when selectTab fails", async () => {
     const loadFileMock = vi
       .fn()
