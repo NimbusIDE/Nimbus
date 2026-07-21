@@ -5,6 +5,7 @@ import {
   writeWorkspaceTree,
   FileNotFoundError,
   InvalidPathError,
+  moveWorkspaceNode,
 } from "../services/fileTreeService.js";
 
 // Define the file tree routes for the Fastify server.
@@ -56,5 +57,27 @@ export async function fileTreeRoutes(app: FastifyInstance) {
     }
 
     return writeWorkspaceTree(body.path, body.content);
+  });
+
+  // Handle POST request to move a file or folder within the workspace.
+  app.post("/workspace/move", async (request, reply) => {
+    const body = request.body as {
+      sourcePath?: string;
+      destinationFolderPath?: string;
+    };
+
+    if (!body.sourcePath) {
+      reply.status(400).send({ error: "Missing 'sourcePath' body parameter" });
+      return;
+    }
+
+    if (!body.destinationFolderPath) {
+      reply
+        .status(400)
+        .send({ error: "Missing 'destinationFolderPath' body parameter" });
+      return;
+    }
+
+    return moveWorkspaceNode(body.sourcePath, body.destinationFolderPath);
   });
 }

@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config/env.js";
 
@@ -70,6 +70,41 @@ export async function writeWorkspaceTree(
     path: relativePath,
     name: path.basename(relativePath),
     saved: true,
+  };
+}
+
+// Move a file or folder within the workspace tree.
+export async function moveWorkspaceNode(
+  sourcePath: string,
+  destinationFolderPath: string,
+) {
+  const absoluteSourcePath = resolveWorkspacePath(sourcePath);
+  const absoluteDestinationFolderPath = resolveWorkspacePath(
+    destinationFolderPath,
+  );
+
+  const sourceName = path.basename(sourcePath);
+  const destinationAbsolutePath = path.join(
+    absoluteDestinationFolderPath,
+    sourceName,
+  );
+
+  const destinationStats = await stat(absoluteDestinationFolderPath);
+  if (!destinationStats.isDirectory()) {
+    throw new Error("Destination path is not a directory");
+  }
+
+  if (absoluteSourcePath === destinationAbsolutePath) {
+    throw new Error("Source and destination paths are the same");
+  }
+
+  await rename(absoluteSourcePath, destinationAbsolutePath);
+
+  return {
+    sourcePath,
+    destinationPath: absoluteDestinationFolderPath
+      ? `${destinationFolderPath}/${sourceName}`
+      : sourceName,
   };
 }
 
