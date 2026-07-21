@@ -66,16 +66,11 @@ export async function fileTreeRoutes(app: FastifyInstance) {
       destinationFolderPath?: string;
     };
 
-    if (!body.sourcePath) {
-      reply.status(400).send({ error: "Missing 'sourcePath' body parameter" });
-      return;
-    }
-
-    if (!body.destinationFolderPath) {
-      reply
-        .status(400)
-        .send({ error: "Missing 'destinationFolderPath' body parameter" });
-      return;
+    if (
+      typeof body.sourcePath !== "string" ||
+      typeof body.destinationFolderPath !== "string"
+    ) {
+      return reply.status(400).send({ error: "Invalid move request" });
     }
 
     return moveWorkspaceNode(body.sourcePath, body.destinationFolderPath);

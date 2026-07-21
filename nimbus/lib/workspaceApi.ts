@@ -56,3 +56,25 @@ export async function saveWorkspaceFile(path: string, content: string) {
     throw new Error("Failed to save file");
   }
 }
+
+export async function moveWorkspaceNode(
+  sourcePath: string,
+  destinationFolderPath: string,
+) {
+  const response = await fetch(`${WORKSPACE_API_BASE_URL}/workspace/move`, {
+    method: "POST",
+    headers: {
+      "content-Type": "application/json",
+    },
+    body: JSON.stringify({ sourcePath, destinationFolderPath }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to move file or folder");
+  }
+
+  return (await response.json()) as {
+    sourcePath: string;
+    destinationPath: string;
+  };
+}

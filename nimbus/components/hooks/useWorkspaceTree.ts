@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchWorkspaceTree } from "@/lib/workspaceApi";
 import type { TreeNode } from "@/types/workspace";
 
@@ -18,34 +18,37 @@ export function useWorkspaceTree({
   const [isTreeLoading, setIsTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadWorkspaceTree() {
-      try {
-        setIsTreeLoading(true);
-        setTreeError(null);
+  // Reloads the workspace tree from the backend and updates state.
+  const reloadWorkspaceTree = useCallback(async () => {
+    try {
+      setIsTreeLoading(true);
+      setTreeError(null);
 
-        const data = await fetchWorkspaceTree();
+      const data = await fetchWorkspaceTree();
 
-        setWorkspaceTree(data.nodes);
-        onTreeLoaded?.(data.nodes);
-      } catch (error) {
-        setTreeError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load workspace files",
-        );
-      } finally {
-        setIsTreeLoading(false);
-      }
+      setWorkspaceTree(data.nodes);
+      onTreeLoaded?.(data.nodes);
+    } catch (error) {
+      setTreeError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load workspace files",
+      );
+    } finally {
+      setIsTreeLoading(false);
     }
-
-    void loadWorkspaceTree();
   }, [onTreeLoaded]);
+
+  // Load the workspace tree on mount and whenever reloadWorkspaceTree changes.
+  useEffect(() => {
+    void reloadWorkspaceTree();
+  }, [reloadWorkspaceTree]);
 
   return {
     workspaceTree,
     isTreeLoading,
     treeError,
     setTreeError,
+    reloadWorkspaceTree,
   };
 }
