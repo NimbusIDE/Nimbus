@@ -17,13 +17,18 @@ type FileTreeProps = {
 
 type TreeNodeRowProps = {
   node: TreeNode;
+  // Nesting level, used to compute indentation.
   depth: number;
+  // Full slash-joined path from the tree root (e.g. "app/page.tsx"),
+  // used as the row's identity for selection, expansion, and context menus.
   path: string;
   activePath?: string;
   onSelectFile: (node: TreeNode, path: string) => void;
   onOpenFile?: (node: TreeNode, path: string) => void;
   onFileContextMenu?: ContextMenuHandler;
   onFolderContextMenu?: ContextMenuHandler;
+  // Expansion state lives in the parent FileTree and is passed down so all
+  // rows share one source of truth instead of tracking their own.
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
 };
