@@ -73,6 +73,23 @@ export async function fileTreeRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid move request" });
     }
 
-    return moveWorkspaceNode(body.sourcePath, body.destinationFolderPath);
+    try {
+      return await moveWorkspaceNode(
+        body.sourcePath,
+        body.destinationFolderPath,
+      );
+    } catch (error) {
+      if (error instanceof FileNotFoundError) {
+        reply.status(404).send({ error: error.message });
+        return;
+      }
+      if (error instanceof InvalidPathError) {
+        reply.status(400).send({ error: error.message });
+        return;
+      }
+      request.log.error(error);
+      reply.status(500).send({ error: "Internal server error" });
+      return;
+    }
   });
 }

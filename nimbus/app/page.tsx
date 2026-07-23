@@ -121,7 +121,7 @@ export default function App() {
         onMoveNode={async (sourcePath, targetFolderPath) => {
           try {
             await moveWorkspaceNode(sourcePath, targetFolderPath);
-            workspaceTree.reloadWorkspaceTree();
+            await workspaceTree.reloadWorkspaceTree();
           } catch (error) {
             workspaceTree.setTreeError(
               error instanceof Error

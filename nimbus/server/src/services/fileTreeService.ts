@@ -89,22 +89,70 @@ export async function moveWorkspaceNode(
     sourceName,
   );
 
-  const destinationStats = await stat(absoluteDestinationFolderPath);
-  if (!destinationStats.isDirectory()) {
-    throw new Error("Destination path is not a directory");
+  // Check if the source path exists and is valid.
+  let sourceStats;
+  try {
+    sourceStats = await stat(absoluteSourcePath);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("ENOENT")) {
+      throw new FileNotFoundError(`File not found: ${sourcePath}`);
+    }
+    throw error;
   }
 
+  // Prevent moving a folder into itself or one of its subfolders.
+  if (sourceStats.isDirectory()) {
+    const sourcePrefix = absoluteSourcePath.endsWith(path.sep)
+      ? absoluteSourcePath
+      : `${absoluteSourcePath}${path.sep}`;
+    if (destinationAbsolutePath.startsWith(sourcePrefix)) {
+      throw new InvalidPathError(
+        "Cannot move a folder into itself or one of its subfolders",
+      );
+    }
+  }
+
+  // Check if the destination folder exists and is valid.
+  let destinationStats;
+  try {
+    destinationStats = await stat(absoluteDestinationFolderPath);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("ENOENT")) {
+      throw new FileNotFoundError(
+        `File not found: ${destinationFolderPath || "."}`,
+      );
+    }
+    throw error;
+  }
+
+  // Ensure the destination is a directory.
+  if (!destinationStats.isDirectory()) {
+    throw new InvalidPathError(
+      `Destination path is not a directory: ${destinationFolderPath}`,
+    );
+  }
+
+  // Prevent moving a file or folder to the same location.
   if (absoluteSourcePath === destinationAbsolutePath) {
-    throw new Error("Source and destination paths are the same");
+    throw new InvalidPathError("Source and destination paths are the same");
+  }
+
+  try {
+    await stat(destinationAbsolutePath);
+    throw new InvalidPathError(
+      `Destination already exists: ${path.posix.join(destinationFolderPath, sourceName)}`,
+    );
+  } catch (error) {
+    if (!(error instanceof Error && error.message.includes("ENOENT"))) {
+      throw error;
+    }
   }
 
   await rename(absoluteSourcePath, destinationAbsolutePath);
 
   return {
     sourcePath,
-    destinationPath: absoluteDestinationFolderPath
-      ? `${destinationFolderPath}/${sourceName}`
-      : sourceName,
+    destinationPath: path.posix.join(destinationFolderPath, sourceName),
   };
 }
 
