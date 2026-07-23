@@ -64,7 +64,7 @@ export async function moveWorkspaceNode(
   const response = await fetch(`${WORKSPACE_API_BASE_URL}/workspace/move`, {
     method: "POST",
     headers: {
-      "content-Type": "application/json",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ sourcePath, destinationFolderPath }),
   });
