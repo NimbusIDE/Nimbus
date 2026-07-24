@@ -1,0 +1,17 @@
+services:
+  api:
+    build:
+      context: .                          # repo root — required for the root lockfile
+      dockerfile: nimbus/server/Dockerfile
+    container_name: nimbus-api
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0                        # override 127.0.0.1 default so it's reachable from the host
+      PORT: "4000"
+      CORS_ORIGIN: http://localhost:3000
+      WORKSPACE_ROOT: /app/workspaces/demo
+    volumes:
+      - ./nimbus/server:/app/nimbus/server # live source → hot reload (tsconfig, package.json, src)
+      - ./workspaces/demo:/app/workspaces/demo

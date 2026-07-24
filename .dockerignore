@@ -1,0 +1,19 @@
+
+# Ignore node modules
+node_modules
+**/node_modules
+nimbus/.next
+nimbus/.claude
+nimbus/.env
+
+# Ignore the build output of the server
+nimbus/server/dist 
+
+# Ignore Git and system files
+.git
+.DS_Store
+**/.env
+**/.env.*
+!**/.env.example
+npm-debug.log*
+workspaces/
