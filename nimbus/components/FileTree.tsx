@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { File, FileCode, FileJson, Folder } from "lucide-react";
 import type { ContextMenuHandler, TreeNode } from "@/types/workspace";
 
@@ -20,6 +27,15 @@ type FileTreeProps = {
   onMoveNode?: (sourcePath: string, targetFolderPath: string) => void;
 };
 
+type FileTreeContextValue = {
+  draggingPath: string | null;
+  dropTargetPath: string | null;
+  onDragStartNode: (path: string) => void;
+  onDragEndNode: () => void;
+  onDragOverFolder: (path: string) => void;
+  onDropOnFolder: (targetFolderPath: string) => void;
+};
+
 type TreeNodeRowProps = {
   node: TreeNode;
   // Nesting level, used to compute indentation.
@@ -36,13 +52,23 @@ type TreeNodeRowProps = {
   // rows share one source of truth instead of tracking their own.
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
-  draggingPath: string | null;
-  dropTargetPath: string | null;
-  onDragStartNode: (path: string) => void;
-  onDragEndNode: () => void;
-  onDragOverFolder: (path: string) => void;
-  onDropOnFolder: (targetFolderPath: string) => void;
 };
+
+// Context for drag state. FileTree owns the state, but TreeNodeRow components
+// need to read it and update it during drag events. This context avoids passing
+// the state through many props.
+const FileTreeContext = createContext<FileTreeContextValue | null>(null);
+
+// Custom hook to access the FileTreeContext. Throws an error if used outside
+function useFileTreeContext() {
+  const context = useContext(FileTreeContext);
+
+  if (!context) {
+    throw new Error("useFileTreeContext must be used within a FileTreeContext");
+  }
+
+  return context;
+}
 
 function getFileIcon(name: string) {
   const extension = name.includes(".")
@@ -82,13 +108,18 @@ function TreeNodeRow({
   onFolderContextMenu,
   expandedFolders,
   onToggleFolder,
-  draggingPath,
-  dropTargetPath,
-  onDragStartNode,
-  onDragEndNode,
-  onDragOverFolder,
-  onDropOnFolder,
 }: TreeNodeRowProps) {
+  // Drag state is shared through context so all rows can read/write it without
+  // passing props through many levels of recursion.
+  const {
+    draggingPath,
+    dropTargetPath,
+    onDragStartNode,
+    onDragEndNode,
+    onDragOverFolder,
+    onDropOnFolder,
+  } = useFileTreeContext();
+
   const isFolder = node.type === "folder";
   const isActive = path === activePath;
   const isExpanded = expandedFolders.has(path);
@@ -223,12 +254,6 @@ function TreeNodeRow({
               onFolderContextMenu={onFolderContextMenu}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
-              draggingPath={draggingPath}
-              dropTargetPath={dropTargetPath}
-              onDragStartNode={onDragStartNode}
-              onDragEndNode={onDragEndNode}
-              onDragOverFolder={onDragOverFolder}
-              onDropOnFolder={onDropOnFolder}
             />
           ))}
         </ul>
@@ -353,41 +378,47 @@ export function FileTree({
     setDropTargetPath(null);
   };
 
+  // Provide drag state and handlers to all TreeNodeRow children through context.
+  const contextValue: FileTreeContextValue = {
+    draggingPath,
+    dropTargetPath,
+    onDragStartNode: handleDragStartNode,
+    onDragEndNode: handleDragEndNode,
+    onDragOverFolder: handleDragOverFolder,
+    onDropOnFolder: handleDropOnFolder,
+  };
+
   return (
     // File explorer section:
     // --------------------------------------------------------------------------------
     // Renders the project tree and delegates file selection/opening behavior to page.tsx.
-    <nav
-      aria-label="Project files"
-      onDragOver={handleDragOverRoot}
-      onDrop={handleDropOnRoot}
-      className={`min-h-full rounded transition-colors ${
-        isRootDropTarget ? "bg-blue-950/40 ring-1 ring-blue-700/70" : ""
-      }`}
-    >
-      <ul className="space-y-0.5">
-        {nodes.map((node) => (
-          <TreeNodeRow
-            key={node.name}
-            node={node}
-            depth={0}
-            path={node.name}
-            activePath={activePath}
-            onSelectFile={onSelectFile}
-            onOpenFile={onOpenFile}
-            onFileContextMenu={onFileContextMenu}
-            onFolderContextMenu={onFolderContextMenu}
-            expandedFolders={expandedFolders}
-            onToggleFolder={handleToggleFolder}
-            draggingPath={draggingPath}
-            dropTargetPath={dropTargetPath}
-            onDragStartNode={handleDragStartNode}
-            onDragEndNode={handleDragEndNode}
-            onDragOverFolder={handleDragOverFolder}
-            onDropOnFolder={handleDropOnFolder}
-          />
-        ))}
-      </ul>
-    </nav>
+    <FileTreeContext.Provider value={contextValue}>
+      <nav
+        aria-label="Project files"
+        onDragOver={handleDragOverRoot}
+        onDrop={handleDropOnRoot}
+        className={`min-h-full rounded transition-colors ${
+          isRootDropTarget ? "bg-blue-950/40 ring-1 ring-blue-700/70" : ""
+        }`}
+      >
+        <ul className="space-y-0.5">
+          {nodes.map((node) => (
+            <TreeNodeRow
+              key={node.name}
+              node={node}
+              depth={0}
+              path={node.name}
+              activePath={activePath}
+              onSelectFile={onSelectFile}
+              onOpenFile={onOpenFile}
+              onFileContextMenu={onFileContextMenu}
+              onFolderContextMenu={onFolderContextMenu}
+              expandedFolders={expandedFolders}
+              onToggleFolder={handleToggleFolder}
+            />
+          ))}
+        </ul>
+      </nav>
+    </FileTreeContext.Provider>
   );
 }
