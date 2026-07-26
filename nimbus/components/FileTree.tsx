@@ -2,9 +2,11 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type DragEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { File, FileCode, FileJson, Folder } from "lucide-react";
 import type { ContextMenuHandler, TreeNode } from "@/types/workspace";
@@ -25,6 +27,11 @@ type FileTreeProps = {
   onFileContextMenu?: ContextMenuHandler;
   onFolderContextMenu?: ContextMenuHandler;
   onMoveNode?: (sourcePath: string, targetFolderPath: string) => void;
+  // Multi-select is controlled: the parent owns the Set (so it can be reused
+  // for bulk actions elsewhere), FileTree only computes what the next Set
+  // should be after a click, since it's the one that knows visible row order.
+  selectedPaths: Set<string>;
+  onSelectionChange: (next: Set<string>) => void;
 };
 
 type FileTreeContextValue = {
@@ -52,6 +59,11 @@ type TreeNodeRowProps = {
   // rows share one source of truth instead of tracking their own.
   expandedFolders: Set<string>;
   onToggleFolder: (path: string) => void;
+  // Multi-select only applies to file rows. Passed wholesale (like
+  // expandedFolders) so each row can compute its own isSelected, the same way
+  // isActive is derived from activePath.
+  selectedPaths: Set<string>;
+  onFileClick: (path: string, event: ReactMouseEvent) => void;
 };
 
 // Context for drag state. FileTree owns the state, but TreeNodeRow components
@@ -68,6 +80,71 @@ function useFileTreeContext() {
   }
 
   return context;
+}
+
+// Top-to-bottom order of currently visible FILE paths (folders are excluded
+// since they aren't selectable). Shift+click range selection needs this order
+// to know which files fall "between" the anchor and the clicked row.
+function flattenVisibleFilePaths(
+  nodes: TreeNode[],
+  expandedFolders: Set<string>,
+  parentPath = "",
+): string[] {
+  return nodes.flatMap((node) => {
+    const path = parentPath ? `${parentPath}/${node.name}` : node.name;
+
+    if (node.type !== "folder") {
+      return [path];
+    }
+
+    if (!expandedFolders.has(path)) {
+      return [];
+    }
+
+    return flattenVisibleFilePaths(node.children ?? [], expandedFolders, path);
+  });
+}
+
+// Pure so it's easy to reason about/test independent of click wiring.
+// - Plain click: replace the selection with just this path.
+// - Ctrl/Cmd+click: toggle this path in the existing selection.
+// - Shift+click: select the contiguous range from the anchor to this path,
+//   replacing whatever was selected before (matches most editors/file
+//   managers rather than unioning with prior selection).
+function computeNextSelection(
+  current: Set<string>,
+  orderedPaths: string[],
+  clickedPath: string,
+  anchorPath: string | null,
+  modifiers: { ctrlOrCmd: boolean; shift: boolean },
+): Set<string> {
+  if (modifiers.shift && anchorPath) {
+    const anchorIndex = orderedPaths.indexOf(anchorPath);
+    const clickedIndex = orderedPaths.indexOf(clickedPath);
+
+    if (anchorIndex !== -1 && clickedIndex !== -1) {
+      const [start, end] =
+        anchorIndex <= clickedIndex
+          ? [anchorIndex, clickedIndex]
+          : [clickedIndex, anchorIndex];
+
+      return new Set(orderedPaths.slice(start, end + 1));
+    }
+  }
+
+  if (modifiers.ctrlOrCmd) {
+    const next = new Set(current);
+
+    if (next.has(clickedPath)) {
+      next.delete(clickedPath);
+    } else {
+      next.add(clickedPath);
+    }
+
+    return next;
+  }
+
+  return new Set([clickedPath]);
 }
 
 function getFileIcon(name: string) {
@@ -108,6 +185,8 @@ function TreeNodeRow({
   onFolderContextMenu,
   expandedFolders,
   onToggleFolder,
+  selectedPaths,
+  onFileClick,
 }: TreeNodeRowProps) {
   // Drag state is shared through context so all rows can read/write it without
   // passing props through many levels of recursion.
@@ -123,6 +202,7 @@ function TreeNodeRow({
   const isFolder = node.type === "folder";
   const isActive = path === activePath;
   const isExpanded = expandedFolders.has(path);
+  const isSelected = !isFolder && selectedPaths.has(path);
   // These booleans only control drag/drop visuals for this row: the item being
   // dragged fades out, and a folder being hovered as a drop target turns blue.
   const isDragging = draggingPath === path;
@@ -149,7 +229,10 @@ function TreeNodeRow({
               : "text-neutral-300 hover:bg-neutral-800/70 hover:text-neutral-100"
         } ${isDragging ? "opacity-50" : ""} ${
           isFolder ? "font-semibold" : "font-normal"
-        }`}
+          // Selection ring is layered on top of the active/hover background so a
+          // file can be both "open in editor" (isActive) and "selected" at once,
+          // and the two states stay visually distinct.
+        } ${isSelected ? "ring-1 ring-inset ring-emerald-500" : ""}`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onDragStart={(event) => {
           // Start dragging this visible tree row. The browser dataTransfer value
@@ -186,10 +269,20 @@ function TreeNodeRow({
           event.stopPropagation();
           onDropOnFolder(path);
         }}
-        onClick={() => {
-          // Folders only expand/collapse. They do not open editor tabs.
+        onClick={(event) => {
+          // Folders only expand/collapse. They do not open editor tabs or
+          // participate in multi-select.
           if (isFolder) {
             onToggleFolder(path);
+            return;
+          }
+
+          onFileClick(path, event);
+
+          // Ctrl/Cmd/Shift-click are for building a selection, not for opening
+          // a file in the editor — skip the preview timer so multi-selecting
+          // doesn't yank editor focus away from the file you're already on.
+          if (event.ctrlKey || event.metaKey || event.shiftKey) {
             return;
           }
 
@@ -254,6 +347,8 @@ function TreeNodeRow({
               onFolderContextMenu={onFolderContextMenu}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
+              selectedPaths={selectedPaths}
+              onFileClick={onFileClick}
             />
           ))}
         </ul>
@@ -286,10 +381,21 @@ export function FileTree({
   onFileContextMenu,
   onFolderContextMenu,
   onMoveNode,
+  selectedPaths,
+  onSelectionChange,
 }: FileTreeProps) {
   // Track expanded folders locally because folder open/closed UI belongs to the tree.
   const [expandedFolders, setExpandedFolders] = useState(
     () => new Set(getInitialExpandedFolders(nodes)),
+  );
+  // Shift-range anchor: the last file clicked without Shift held. It's an
+  // algorithm detail of range selection, not UI state, so a ref is enough —
+  // nothing needs to re-render when it changes.
+  const lastClickedPathRef = useRef<string | null>(null);
+
+  const visibleFilePaths = useMemo(
+    () => flattenVisibleFilePaths(nodes, expandedFolders),
+    [nodes, expandedFolders],
   );
   // Drag state is owned by FileTree because the dragged item and drop target can
   // be different TreeNodeRow components, including deeply nested rows.
@@ -351,6 +457,27 @@ export function FileTree({
     onMoveNode?.(draggingPath, targetFolderPath);
     setDraggingPath(null);
     setDropTargetPath(null);
+  };
+
+  const handleFileClick = (path: string, event: ReactMouseEvent) => {
+    const modifiers = {
+      ctrlOrCmd: event.ctrlKey || event.metaKey,
+      shift: event.shiftKey,
+    };
+
+    onSelectionChange(
+      computeNextSelection(
+        selectedPaths,
+        visibleFilePaths,
+        path,
+        lastClickedPathRef.current,
+        modifiers,
+      ),
+    );
+
+    if (!modifiers.shift) {
+      lastClickedPathRef.current = path;
+    }
   };
 
   const handleDragOverRoot = (event: DragEvent<HTMLElement>) => {
@@ -415,6 +542,8 @@ export function FileTree({
               onFolderContextMenu={onFolderContextMenu}
               expandedFolders={expandedFolders}
               onToggleFolder={handleToggleFolder}
+              selectedPaths={selectedPaths}
+              onFileClick={handleFileClick}
             />
           ))}
         </ul>
