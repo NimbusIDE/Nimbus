@@ -34,6 +34,11 @@ export function ExplorerPanel({
     position: Position;
   } | null>(null);
 
+  // Multi-selected file paths (NIM-37). FileTree computes what the set should
+  // become on each click (plain/Ctrl/Shift); this is just the storage, so
+  // other UI (e.g. a future bulk-delete action) can read it from here too.
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+
   // Item list for right-clicking a file row. Actions are placeholder
   // console.log calls for now — wiring them to real file operations is a
   // separate issue.
@@ -119,6 +124,8 @@ export function ExplorerPanel({
           onFileContextMenu={handleFileContextMenu}
           onFolderContextMenu={handleFolderContextMenu}
           onMoveNode={onMoveNode}
+          selectedPaths={selectedPaths}
+          onSelectionChange={setSelectedPaths}
         />
       )}
 

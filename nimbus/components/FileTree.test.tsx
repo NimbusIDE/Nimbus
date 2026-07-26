@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { FileTree, type TreeNode } from "./FileTree";
 
@@ -30,9 +31,21 @@ const nodes: TreeNode[] = [
   { name: "package.json", type: "file", content: "{}" },
 ];
 
+function renderTree(props: Partial<ComponentProps<typeof FileTree>> = {}) {
+  return render(
+    <FileTree
+      nodes={nodes}
+      onSelectFile={vi.fn()}
+      selectedPaths={new Set()}
+      onSelectionChange={vi.fn()}
+      {...props}
+    />,
+  );
+}
+
 describe("FileTree", () => {
   it("renders folders and files with nested indentation", () => {
-    render(<FileTree nodes={nodes} onSelectFile={vi.fn()} />);
+    renderTree();
 
     // The tree itself and its items are visible.
     expect(
@@ -55,7 +68,7 @@ describe("FileTree", () => {
   it("collapses and expands folder contents when a folder is clicked", async () => {
     const user = userEvent.setup();
 
-    render(<FileTree nodes={nodes} onSelectFile={vi.fn()} />);
+    renderTree();
 
     const appFolder = screen.getByRole("button", { name: /app/ });
     expect(appFolder).toHaveAttribute("aria-expanded", "true");
@@ -80,13 +93,7 @@ describe("FileTree", () => {
     const user = userEvent.setup();
     const onSelectFile = vi.fn();
 
-    render(
-      <FileTree
-        nodes={nodes}
-        activePath="package.json"
-        onSelectFile={onSelectFile}
-      />,
-    );
+    renderTree({ activePath: "package.json", onSelectFile });
 
     await user.click(screen.getByRole("button", { name: /package\.json/ }));
 
@@ -100,5 +107,113 @@ describe("FileTree", () => {
     expect(screen.getByRole("button", { name: /package\.json/ })).toHaveClass(
       "bg-sky-900/50",
     );
+  });
+
+  describe("multi-select (NIM-37)", () => {
+    // Flat, uniquely-named files so getByRole queries are unambiguous — the
+    // outer `nodes` fixture has two rows both named "page.tsx".
+    const flatNodes: TreeNode[] = [
+      { name: "one.ts", type: "file", content: "" },
+      { name: "two.ts", type: "file", content: "" },
+      { name: "three.ts", type: "file", content: "" },
+    ];
+
+    function renderFlatTree(
+      props: Partial<ComponentProps<typeof FileTree>> = {},
+    ) {
+      return render(
+        <FileTree
+          nodes={flatNodes}
+          onSelectFile={vi.fn()}
+          selectedPaths={new Set()}
+          onSelectionChange={vi.fn()}
+          {...props}
+        />,
+      );
+    }
+
+    it("plain click selects only the clicked file", async () => {
+      const user = userEvent.setup();
+      const onSelectionChange = vi.fn();
+
+      renderFlatTree({
+        selectedPaths: new Set(["one.ts"]),
+        onSelectionChange,
+      });
+
+      await user.click(screen.getByRole("button", { name: /two\.ts/ }));
+
+      expect(onSelectionChange).toHaveBeenCalledWith(new Set(["two.ts"]));
+    });
+
+    it("Ctrl/Cmd+click toggles a file in the existing selection", async () => {
+      const user = userEvent.setup();
+      const onSelectionChange = vi.fn();
+
+      renderFlatTree({
+        selectedPaths: new Set(["one.ts"]),
+        onSelectionChange,
+      });
+
+      await user.keyboard("{Control>}");
+      await user.click(screen.getByRole("button", { name: /two\.ts/ }));
+      await user.keyboard("{/Control}");
+
+      expect(onSelectionChange).toHaveBeenCalledWith(
+        new Set(["one.ts", "two.ts"]),
+      );
+    });
+
+    it("Shift+click selects the contiguous range from the anchor", async () => {
+      let selectedPaths = new Set<string>();
+      const onSelectionChange = vi.fn((next: Set<string>) => {
+        selectedPaths = next;
+      });
+      const user = userEvent.setup();
+
+      const { rerender } = renderFlatTree({ selectedPaths, onSelectionChange });
+
+      // Plain click on the first file sets the Shift anchor.
+      await user.click(screen.getByRole("button", { name: /one\.ts/ }));
+      rerender(
+        <FileTree
+          nodes={flatNodes}
+          onSelectFile={vi.fn()}
+          selectedPaths={selectedPaths}
+          onSelectionChange={onSelectionChange}
+        />,
+      );
+
+      // Shift+click the last file should select every file in between.
+      await user.keyboard("{Shift>}");
+      await user.click(screen.getByRole("button", { name: /three\.ts/ }));
+      await user.keyboard("{/Shift}");
+
+      expect(onSelectionChange).toHaveBeenLastCalledWith(
+        new Set(["one.ts", "two.ts", "three.ts"]),
+      );
+    });
+
+    it("applies a distinct highlight class to selected files", () => {
+      renderFlatTree({ selectedPaths: new Set(["one.ts"]) });
+
+      expect(screen.getByRole("button", { name: /one\.ts/ })).toHaveClass(
+        "ring-emerald-500",
+      );
+      expect(screen.getByRole("button", { name: /two\.ts/ })).not.toHaveClass(
+        "ring-emerald-500",
+      );
+    });
+
+    it("does not select folders on click", async () => {
+      const user = userEvent.setup();
+      const onSelectionChange = vi.fn();
+
+      renderTree({ onSelectionChange });
+
+      await user.click(screen.getByRole("button", { name: /^app$/ }));
+
+      expect(onSelectionChange).not.toHaveBeenCalled();
+    });
   });
 });
