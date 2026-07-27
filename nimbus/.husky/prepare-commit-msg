@@ -1,0 +1,20 @@
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+ticket=$(echo "$branch" | grep -oE '^nim-[0-9]+' | tr '[:lower:]' '[:upper:]')
+
+# Branches like main/feature/* don't carry a ticket id — leave the message alone.
+[ -z "$ticket" ] && exit 0
+
+# These sources already have a real message (amend/cherry-pick/merge/squash) —
+# prefixing again would duplicate or clobber it.
+case "$2" in
+  merge|squash|commit) exit 0 ;;
+esac
+
+# Idempotency guard: re-running the hook (e.g. --amend) shouldn't double-prefix.
+case "$(head -n1 "$1")" in
+  "$ticket "*) exit 0 ;;
+esac
+
+tmp=$(mktemp)
+printf '%s %s' "$ticket" "$(cat "$1")" > "$tmp"
+mv "$tmp" "$1"
