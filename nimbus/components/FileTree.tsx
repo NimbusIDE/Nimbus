@@ -36,8 +36,10 @@ type FileTreeProps = {
 
 type FileTreeContextValue = {
   draggingPath: string | null;
+  draggingType: TreeNode["type"] | null;
   dropTargetPath: string | null;
-  onDragStartNode: (path: string) => void;
+  invalidDropTargetPath: string | null;
+  onDragStartNode: (path: string, type: TreeNode["type"]) => void;
   onDragEndNode: () => void;
   onDragOverFolder: (path: string) => void;
   onDropOnFolder: (targetFolderPath: string) => void;
@@ -80,6 +82,49 @@ function useFileTreeContext() {
   }
 
   return context;
+}
+
+// A target path is inside a source folder when it starts with the source path
+// plus a slash. The slash matters so a folder is not treated as a child of another folder inside it or does not contain it.
+function isDescendantPath(sourcePath: string, targetPath: string) {
+  return targetPath.startsWith(`${sourcePath}/`);
+}
+
+// Returns the folder that currently contains this path. Root-level items use
+// the same empty-string path as ROOT_DROP_TARGET_PATH.
+function getParentPath(sourcePath: string) {
+  const lastSlashIndex = sourcePath.lastIndexOf("/");
+
+  if (lastSlashIndex === -1) {
+    return ROOT_DROP_TARGET_PATH;
+  }
+
+  return sourcePath.slice(0, lastSlashIndex);
+}
+
+// Invalid move targets are blocked before calling the backend. Dropping an item
+// into its current parent is a no-op, and folder moves also need circular guards.
+function isInvalidMoveDrop(
+  draggingPath: string | null,
+  draggingType: TreeNode["type"] | null,
+  targetFolderPath: string,
+) {
+  if (!draggingPath) {
+    return false;
+  }
+
+  if (getParentPath(draggingPath) === targetFolderPath) {
+    return true;
+  }
+
+  if (draggingType !== "folder") {
+    return false;
+  }
+
+  return (
+    draggingPath === targetFolderPath ||
+    isDescendantPath(draggingPath, targetFolderPath)
+  );
 }
 
 // Top-to-bottom order of currently visible FILE paths (folders are excluded
@@ -192,7 +237,9 @@ function TreeNodeRow({
   // passing props through many levels of recursion.
   const {
     draggingPath,
+    draggingType,
     dropTargetPath,
+    invalidDropTargetPath,
     onDragStartNode,
     onDragEndNode,
     onDragOverFolder,
@@ -207,10 +254,13 @@ function TreeNodeRow({
   // dragged fades out, and a folder being hovered as a drop target turns blue.
   const isDragging = draggingPath === path;
   const isDropTarget = isFolder && dropTargetPath === path;
+  // Invalid folder targets intentionally do not use the blue drop styling.
+  // They get a blocked cursor instead so the user can tell the move is rejected.
+  const isInvalidDropTarget = isFolder && invalidDropTargetPath === path;
   const label = node.name;
 
   // Used to separate single click from double click:
-  // single click previews a file after a short delay, while double click cancels
+  // Single click previews a file after a short delay, while double click cancels
   // that preview and opens the file as a normal/persistent tab.
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -222,11 +272,13 @@ function TreeNodeRow({
         type="button"
         draggable
         className={`flex w-full items-center rounded py-1 pr-2 text-left text-sm transition-colors ${
-          isDropTarget
-            ? "bg-blue-900/70 text-blue-100"
-            : isActive
-              ? "bg-sky-900/50 text-sky-100"
-              : "text-neutral-300 hover:bg-neutral-800/70 hover:text-neutral-100"
+          isInvalidDropTarget
+            ? "cursor-not-allowed text-neutral-500"
+            : isDropTarget
+              ? "bg-blue-900/70 text-blue-100"
+              : isActive
+                ? "bg-sky-900/50 text-sky-100"
+                : "text-neutral-300 hover:bg-neutral-800/70 hover:text-neutral-100"
         } ${isDragging ? "opacity-50" : ""} ${
           isFolder ? "font-semibold" : "font-normal"
           // Selection ring is layered on top of the active/hover background so a
@@ -240,7 +292,7 @@ function TreeNodeRow({
           // the UI highlight/fade state inside FileTree.
           event.dataTransfer.effectAllowed = "move";
           event.dataTransfer.setData("text/plain", path);
-          onDragStartNode(path);
+          onDragStartNode(path, node.type);
         }}
         onDragEnd={onDragEndNode}
         onDragOver={(event) => {
@@ -255,7 +307,15 @@ function TreeNodeRow({
           // Folder rows are inside the root drop area. Stop propagation so a
           // folder hover does not get overwritten by the root hover handler.
           event.stopPropagation();
-          event.dataTransfer.dropEffect = "move";
+          // Show the browser's blocked cursor when the hovered folder would
+          // create a circular move, matching the custom invalid row styling.
+          event.dataTransfer.dropEffect = isInvalidMoveDrop(
+            draggingPath,
+            draggingType,
+            path,
+          )
+            ? "none"
+            : "move";
           onDragOverFolder(path);
         }}
         onDrop={(event) => {
@@ -400,8 +460,16 @@ export function FileTree({
   // Drag state is owned by FileTree because the dragged item and drop target can
   // be different TreeNodeRow components, including deeply nested rows.
   const [draggingPath, setDraggingPath] = useState<string | null>(null);
+  const [draggingType, setDraggingType] = useState<TreeNode["type"] | null>(
+    null,
+  );
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const [invalidDropTargetPath, setInvalidDropTargetPath] = useState<
+    string | null
+  >(null);
   const isRootDropTarget = dropTargetPath === ROOT_DROP_TARGET_PATH;
+  const isInvalidRootDropTarget =
+    invalidDropTargetPath === ROOT_DROP_TARGET_PATH;
 
   // The workspace tree arrives asynchronously from the backend. When the nodes
   // change, expand folders again so the loaded project is visible immediately.
@@ -424,39 +492,62 @@ export function FileTree({
     });
   };
 
-  const handleDragStartNode = (path: string) => {
+  const handleDragStartNode = (path: string, type: TreeNode["type"]) => {
     // Remember which path is currently being dragged so targets can decide
-    // whether to highlight and what source path to report on drop.
+    // whether to highlight and what source path to report on drop. The node
+    // type is tracked because only folder moves can create circular references.
     setDraggingPath(path);
+    setDraggingType(type);
   };
 
   const handleDragEndNode = () => {
     // Drag end fires when the user drops, cancels, or releases outside a target.
     // Clearing both values removes all temporary drag styling.
     setDraggingPath(null);
+    setDraggingType(null);
     setDropTargetPath(null);
+    setInvalidDropTargetPath(null);
   };
 
   const handleDragOverFolder = (path: string) => {
-    // Highlight the folder currently under the pointer. Dropping an item onto
-    // itself is ignored because it would be a no-op.
-    if (!draggingPath || draggingPath === path) {
+    // Highlight only valid folder targets. Invalid circular targets are tracked
+    // separately so they can show a not-allowed cursor without looking droppable.
+    if (!draggingPath) {
       return;
     }
 
+    if (isInvalidMoveDrop(draggingPath, draggingType, path)) {
+      setDropTargetPath(null);
+      setInvalidDropTargetPath(path);
+      return;
+    }
+
+    setInvalidDropTargetPath(null);
     setDropTargetPath(path);
   };
 
   const handleDropOnFolder = (targetFolderPath: string) => {
     // A valid folder drop sends the source path and destination folder path up
     // through onMoveNode. Backend/file-tree refresh work can plug in there.
-    if (!draggingPath || draggingPath === targetFolderPath) {
+    if (!draggingPath) {
+      return;
+    }
+
+    if (isInvalidMoveDrop(draggingPath, draggingType, targetFolderPath)) {
+      // Invalid drops are intentionally swallowed in the tree. This keeps the
+      // frontend from sending a move request the backend would reject anyway.
+      setDraggingPath(null);
+      setDraggingType(null);
+      setDropTargetPath(null);
+      setInvalidDropTargetPath(null);
       return;
     }
 
     onMoveNode?.(draggingPath, targetFolderPath);
     setDraggingPath(null);
+    setDraggingType(null);
     setDropTargetPath(null);
+    setInvalidDropTargetPath(null);
   };
 
   const handleFileClick = (path: string, event: ReactMouseEvent) => {
@@ -488,7 +579,19 @@ export function FileTree({
     }
 
     event.preventDefault();
+
+    // Invalid root drops are blocked the same way as invalid folder drops, but
+    // the root target is not a row, so it can't show a blocked cursor. Instead,
+    // the root background gets a red ring to indicate the move is rejected.
+    if (isInvalidMoveDrop(draggingPath, draggingType, ROOT_DROP_TARGET_PATH)) {
+      event.dataTransfer.dropEffect = "none";
+      setDropTargetPath(null);
+      setInvalidDropTargetPath(ROOT_DROP_TARGET_PATH);
+      return;
+    }
+
     event.dataTransfer.dropEffect = "move";
+    setInvalidDropTargetPath(null);
     setDropTargetPath(ROOT_DROP_TARGET_PATH);
   };
 
@@ -500,15 +603,31 @@ export function FileTree({
     }
 
     event.preventDefault();
+
+    // Invalid root drops are blocked the same way as invalid folder drops, but
+    // the root target is not a row, so it can't show a blocked cursor. Instead,
+    // the root background gets a red ring to indicate the move is rejected.
+    if (isInvalidMoveDrop(draggingPath, draggingType, ROOT_DROP_TARGET_PATH)) {
+      setDraggingPath(null);
+      setDraggingType(null);
+      setDropTargetPath(null);
+      setInvalidDropTargetPath(null);
+      return;
+    }
+
     onMoveNode?.(draggingPath, ROOT_DROP_TARGET_PATH);
     setDraggingPath(null);
+    setDraggingType(null);
     setDropTargetPath(null);
+    setInvalidDropTargetPath(null);
   };
 
   // Provide drag state and handlers to all TreeNodeRow children through context.
   const contextValue: FileTreeContextValue = {
     draggingPath,
+    draggingType,
     dropTargetPath,
+    invalidDropTargetPath,
     onDragStartNode: handleDragStartNode,
     onDragEndNode: handleDragEndNode,
     onDragOverFolder: handleDragOverFolder,
@@ -525,7 +644,11 @@ export function FileTree({
         onDragOver={handleDragOverRoot}
         onDrop={handleDropOnRoot}
         className={`min-h-full rounded transition-colors ${
-          isRootDropTarget ? "bg-blue-950/40 ring-1 ring-blue-700/70" : ""
+          isInvalidRootDropTarget
+            ? "cursor-not-allowed"
+            : isRootDropTarget
+              ? "bg-blue-950/40 ring-1 ring-blue-700/70"
+              : ""
         }`}
       >
         <ul className="space-y-0.5">
